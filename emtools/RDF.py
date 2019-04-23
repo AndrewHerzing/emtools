@@ -5,6 +5,7 @@ from pptx import Presentation
 from pptx.util import Inches,Pt
 from PyQt4 import QtGui
 import glob
+import hyperspy.api as hspy
 
 def dataOut(xaxis,data,filename):
     out = np.array([xaxis,data])
@@ -13,6 +14,16 @@ def dataOut(xaxis,data,filename):
         np.savetxt(f,out,delimiter = ' , ',fmt='%2e')  
     f.close()
     return
+
+def processRDF(filename,binsize=1,scalefactor=10,binning=None):
+    data = hspy.load(filename)
+    data = data.inav[0]
+    if binning:
+        outshape = [data.data.shape[0]/binning,data.data.shape[1]/binning]
+        xaxis,profile = RDF(data.rebin(outshape),binsize,scalefactor)
+        return(xaxis,profile)
+    xaxis,profile = RDF(data,binsize,scalefactor)
+    return(xaxis,profile)
 	
 def azimuthalAverage(image, binsize=0.5):
     # Calculate the indices from the image
