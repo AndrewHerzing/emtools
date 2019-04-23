@@ -1,0 +1,15 @@
+image: debian:latest
+
+stages:
+    - test
+
+flake8_checks:
+    stage: test
+    script:
+    - flake8 emtools/
+
+pydocstyle_checks:
+    stage: test
+    script:
+    - pydocstyle emtools/
+    allow_failure: true
