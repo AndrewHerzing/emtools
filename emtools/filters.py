@@ -103,7 +103,7 @@ def bandFilter(data, in_radius=9, out_radius=60):
                           x**2 + y**2 < in_radius**2)
 
     imFreq = np.fft.fft2(im)
-    _ = np.fft.fftshift(np.abs(imFreq))
+    # _ = np.fft.fftshift(np.abs(imFreq))
     imFilt = np.fft.fftshift(imFreq) * mask
     imNew = np.real(np.fft.ifft2(np.fft.ifftshift(imFilt)))
 

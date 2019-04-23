@@ -71,10 +71,10 @@ def mergeChannels(data,
         im_rescale = normalize(exposure.rescale_intensity(
                                                           im,
                                                           in_range=(p2, p98)))
-        _ = ax.imshow(im_rescale,
-                      interpolation='nearest',
-                      cmap=cmaps[i],
-                      clim=[0, limit])
+        ax.imshow(im_rescale,
+                  interpolation='nearest',
+                  cmap=cmaps[i],
+                  clim=[0, limit])
         ax.set_xticks([])
         ax.set_yticks([])
     return fig, ax
