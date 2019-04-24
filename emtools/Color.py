@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib
-from skimage import exposure
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
@@ -53,28 +52,89 @@ def genCMAP(color, alpha=None, N=256):
     return cmap
 
 
-def mergeChannels(data,
-                  colors=['red', 'green', 'blue', 'cyan', 'yellow', 'magenta'],
-                  alpha=0.9, limit=256):
-    nimages = data.shape[2]
-    cmaps = [None]*nimages
-    for i in range(0, nimages):
-        if i == 0:
-            cmaps[i] = genCMAP(colors[i], None, 256)
+def mergeChannels(data, comps=None, colors=None, normalize='individual',
+                  display=True):
+    color_cycle = ['red', 'green', 'blue', 'cyan', 'yellow', 'magenta']
+    if comps is None:
+        if data.shape[2] <= 6:
+            comps = np.arange(0, data.shape[2])
         else:
-            cmaps[i] = genCMAP(colors[i], alpha, 256)
+            comps = np.arange(0, 6)
+    if colors is None:
+        colors = color_cycle[0:len(comps)]
+    images = {}
+    images['rgb'] = np.zeros([data.shape[0], data.shape[1], 3])
+    for i in colors:
+        images[i] = np.zeros([data.shape[0], data.shape[1], 3])
 
-    fig, ax = plt.subplots(1)
-    for i in range(0, nimages):
-        im = data[:, :, i]
-        p2, p98 = np.percentile(im, (1.0, 99.950))
-        im_rescale = normalize(exposure.rescale_intensity(
-                                                          im,
-                                                          in_range=(p2, p98)))
-        ax.imshow(im_rescale,
-                  interpolation='nearest',
-                  cmap=cmaps[i],
-                  clim=[0, limit])
+    for i in range(0, len(comps)):
+        if normalize == 'individual':
+            if colors[i] == 'red':
+                images['red'][:, :, 0] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+            elif colors[i] == 'green':
+                images['green'][:, :, 1] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+            elif colors[i] == 'blue':
+                images['blue'][:, :, 2] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+            elif colors[i] == 'yellow':
+                images['yellow'][:, :, 0] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                images['yellow'][:, :, 1] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+            elif colors[i] == 'magenta':
+                images['magenta'][:, :, 0] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                images['magenta'][:, :, 2] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+            elif colors[i] == 'cyan':
+                images['cyan'][:, :, 1] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                images['cyan'][:, :, 2] = \
+                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+            else:
+                raise ValueError("Unknown color. Must be red, green, blue, "
+                                 "yellow, magenta, or cyan")
+        elif normalize == 'global':
+            if colors[i] == 'red':
+                images['red'][:, :, 0] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+            elif colors[i] == 'green':
+                images['green'][:, :, 1] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+            elif colors[i] == 'blue':
+                images['blue'][:, :, 2] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+            elif colors[i] == 'yellow':
+                images['yellow'][:, :, 0] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+                images['yellow'][:, :, 1] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+            elif colors[i] == 'magenta':
+                images['magenta'][:, :, 0] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+                images['magenta'][:, :, 2] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+            elif colors[i] == 'cyan':
+                images['cyan'][:, :, 1] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+                images['cyan'][:, :, 2] = \
+                    data[:, :, comps[i]]/data[:, :, comps].max()
+            else:
+                raise ValueError("Unknown color. Must be red, green, blue, "
+                                 "yellow, magenta, or cyan.")
+        else:
+            raise ValueError("Unknown normalization method."
+                             "Must be 'individual' or 'global'.")
+
+    for i in colors:
+        images['rgb'] += images[i]
+
+    if display:
+        fig, ax = plt.subplots(1)
+        ax.imshow(images['rgb'])
         ax.set_xticks([])
         ax.set_yticks([])
-    return fig, ax
+        return fig, images
+    return images
