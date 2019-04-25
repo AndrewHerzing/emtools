@@ -11,6 +11,6 @@ setup(
         'emtools',
         ],
     install_requires=[
-        pymcr,
+        'pymcr',
     ]
 )
