@@ -1,9 +1,6 @@
 import numpy as np
 from scipy import fftpack
 import os
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from PyQt4 import QtGui
 import hyperspy.api as hspy
 
 
@@ -49,81 +46,3 @@ def RDF(image, binsize, scalefactor=None):
         scale = scalefactor*image.axes_manager[0].scale
         xaxis = xaxis/(scale*len(psd))
     return xaxis, profile
-
-
-def insertImages(prs, index, filelist='None'):
-    if filelist is None:
-        filelist = QtGui.\
-                    QFileDialog.\
-                    getOpenFileNames(None,
-                                     'Select images for slide ',
-                                     'C:/TEMP')
-        os.chdir(os.path.dirname(filelist[0]))
-    n = len(filelist)
-    w = (13.33-(n+1)*0.25)/n
-    if w < 2.5:
-        w = 2.5
-        margin = (13.333-(n*w/2)-(0.25*(n-1)))/2
-        for i in range(0, len(filelist)):
-            if i < len(filelist)/2:
-                prs.slides[index].\
-                    shapes.\
-                    add_picture(filelist[i],
-                                left=Inches(margin + (i*0.25)+i*w),
-                                width=Inches(w),
-                                top=Inches(1.75))
-            else:
-                j = i - int(len(filelist)/2)
-                prs.\
-                    slides[index].\
-                    shapes.\
-                    add_picture(filelist[i],
-                                left=Inches(margin+(j*0.25)+j*w),
-                                width=Inches(w),
-                                top=Inches(1.75+w+0.25))
-        return()
-    else:
-        if w > 5.5:
-            w = 5.5
-    margin = (13.333-(n*w)-(0.25*(n-1)))/2
-    for i in range(0, len(filelist)):
-        prs.\
-            slides[index].\
-            shapes.\
-            add_picture(filelist[i],
-                        left=Inches(margin+(i*0.25)+i*w),
-                        width=Inches(w),
-                        top=Inches(1.75))
-    return()
-
-
-def makeSlide(prs, title, subtitle, index, filelist):
-    # Widescreen slide layout (13.333" X 7.5 in")
-    blank_slide_layout = prs.slide_layouts[6]
-    slide = prs.slides.add_slide(blank_slide_layout)
-    txBox = slide.\
-        shapes.\
-        add_textbox(Inches(0), Inches(0), Inches(10), Inches(1))
-    tf = txBox.text_frame
-    p = tf.paragraphs[0]
-    p.text = title
-    p.font.name = 'Calibri Light'
-    p.font.size = Pt(60)
-
-    txBox2 = slide.\
-        shapes.\
-        add_textbox(Inches(0), Inches(1), Inches(10), Inches(0.65))
-    tf2 = txBox2.text_frame
-    p2 = tf2.paragraphs[0]
-    p2.text = subtitle
-    p2.font.name = 'Calibri'
-    p2.font.size = Pt(24)
-    insertImages(prs, index, filelist)
-    return
-
-
-def makePres(width=13.333, height=7.5):
-    prs = Presentation()
-    prs.slide_width = 72*Pt(width)
-    prs.slide_height = 72*Pt(height)
-    return prs
