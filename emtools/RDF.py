@@ -3,7 +3,6 @@ from scipy import fftpack
 import os
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from PyQt4 import QtGui
 import hyperspy.api as hspy
 
 
@@ -51,14 +50,7 @@ def RDF(image, binsize, scalefactor=None):
     return xaxis, profile
 
 
-def insertImages(prs, index, filelist='None'):
-    if filelist is None:
-        filelist = QtGui.\
-                    QFileDialog.\
-                    getOpenFileNames(None,
-                                     'Select images for slide ',
-                                     'C:/TEMP')
-        os.chdir(os.path.dirname(filelist[0]))
+def insertImages(prs, index, filelist):
     n = len(filelist)
     w = (13.33-(n+1)*0.25)/n
     if w < 2.5:
