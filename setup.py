@@ -12,5 +12,6 @@ setup(
         ],
     install_requires=[
         'pymcr',
+        'python-pptx',
     ]
 )
