@@ -1,5 +1,7 @@
 import numpy as np
 from hyperspy.signals import Signal2D, Signal1D
+from hyperspy.drawing.utils import plot_spectra
+import matplotlib.pylab as plt
 
 
 def dataOut(xaxis, data, filename):
@@ -26,7 +28,7 @@ def azimuthalAverage(image, binsize=0.5):
     return bin_centers, radial_prof
 
 
-def RDF(s, rebinfactor=None, binsize=1, scalefactor=10):
+def RDF(s, rebinfactor=None, binsize=1):
     if rebinfactor:
         image = s.rebin(scale=(rebinfactor, rebinfactor))
     else:
@@ -36,8 +38,43 @@ def RDF(s, rebinfactor=None, binsize=1, scalefactor=10):
                    axes=[fft.axes_manager[0].get_axis_dictionary(),
                          fft.axes_manager[1].get_axis_dictionary()])
     xaxis, profile = azimuthalAverage(psd.data, binsize)
+    scale = fft.axes_manager[0].scale
     profile = Signal1D(profile)
-    if scalefactor:
-        scale = scalefactor*image.axes_manager[0].scale
-        xaxis = xaxis/(scale*len(psd))
-    return xaxis, profile
+    profile.axes_manager[0].name = 'Frequency'
+    profile.axes_manager[0].units = '1/A'
+    profile.axes_manager[0].offset = xaxis[0]*scale
+    profile.axes_manager[0].scale = scale
+    return psd, profile, xaxis
+
+
+def plotRDF(rdfs, xrange=None, yrange=None, labels=None):
+    if len(rdfs) == 1:
+        rdfs.plot()
+        ax = plt.gca()
+        fig = plt.gcf()
+        ax.set_yscale("log")
+        ax.set_xscale("log")
+        line = ax.get_lines()[0]
+        line.set_linewidth(0)
+        line.set_marker('o')
+        line.set_markeredgecolor('red')
+        line.set_markerfacecolor('white')
+        if xrange:
+            ax.set_xlim(xrange)
+        if yrange:
+            ax.set_ylim(yrange)
+    else:
+        ax = plot_spectra(rdfs)
+        fig = plt.gcf()
+        ax.set_yscale("log")
+        ax.set_xscale("log")
+        lines = ax.get_lines()
+        for line in lines:
+            line.set_linewidth(0)
+            line.set_marker('o')
+            line.set_markerfacecolor('white')
+        if xrange:
+            ax.set_xlim(xrange)
+        if yrange:
+            ax.set_ylim(yrange)
+    return fig, ax
