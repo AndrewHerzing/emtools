@@ -1,7 +1,5 @@
 import numpy as np
-from scipy import fftpack
-import os
-import hyperspy.api as hspy
+from hyperspy.signals import Signal2D, Signal1D
 
 
 def dataOut(xaxis, data, filename):
@@ -11,17 +9,6 @@ def dataOut(xaxis, data, filename):
         np.savetxt(f, out, delimiter=' , ', fmt='%2e')
     f.close()
     return
-
-
-def processRDF(filename, binsize=1, scalefactor=10, binning=None):
-    data = hspy.load(filename)
-    data = data.inav[0]
-    if binning:
-        outshape = [data.data.shape[0]/binning, data.data.shape[1]/binning]
-        xaxis, profile = RDF(data.rebin(outshape), binsize, scalefactor)
-        return(xaxis, profile)
-    xaxis, profile = RDF(data, binsize, scalefactor)
-    return xaxis, profile
 
 
 def azimuthalAverage(image, binsize=0.5):
@@ -39,9 +26,17 @@ def azimuthalAverage(image, binsize=0.5):
     return bin_centers, radial_prof
 
 
-def RDF(image, binsize, scalefactor=None):
-    psd = np.abs(fftpack.fftshift(fftpack.fft2(image.data)))**2
-    xaxis, profile = azimuthalAverage(psd, binsize)
+def RDF(s, rebinfactor=None, binsize=1, scalefactor=10):
+    if rebinfactor:
+        image = s.rebin(scale=(rebinfactor, rebinfactor))
+    else:
+        image = s.deepcopy()
+    fft = image.fft(shift=True)
+    psd = Signal2D(np.abs(fft.real())**2,
+                   axes=[fft.axes_manager[0].get_axis_dictionary(),
+                         fft.axes_manager[1].get_axis_dictionary()])
+    xaxis, profile = azimuthalAverage(psd.data, binsize)
+    profile = Signal1D(profile)
     if scalefactor:
         scale = scalefactor*image.axes_manager[0].scale
         xaxis = xaxis/(scale*len(psd))
