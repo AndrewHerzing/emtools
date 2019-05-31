@@ -11,7 +11,5 @@ setup(
         'emtools',
         ],
     install_requires=[
-        'pymcr',
-        'python-pptx',
     ]
 )
