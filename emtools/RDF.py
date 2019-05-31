@@ -64,7 +64,7 @@ def plotRDF(rdfs, xrange=None, yrange=None, labels=None):
         if yrange:
             ax.set_ylim(yrange)
     else:
-        ax = plot_spectra(rdfs)
+        ax = plot_spectra(rdfs, legend=labels)
         fig = plt.gcf()
         ax.set_yscale("log")
         ax.set_xscale("log")
