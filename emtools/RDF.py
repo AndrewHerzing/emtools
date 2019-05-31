@@ -41,7 +41,7 @@ def RDF(s, rebinfactor=None, binsize=1):
     scale = fft.axes_manager[0].scale
     profile = Signal1D(profile)
     profile.axes_manager[0].name = 'Frequency'
-    profile.axes_manager[0].units = '1/A'
+    profile.axes_manager[0].units = '1/%s' % s.axes_manager[0].units
     profile.axes_manager[0].offset = xaxis[0]*scale
     profile.axes_manager[0].scale = scale
     return psd, profile, xaxis
