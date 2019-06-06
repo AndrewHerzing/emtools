@@ -54,7 +54,7 @@ def preprocess(s, border=5):
     return im_labels
 
 
-def get_props(s, cutoff=None):
+def get_props(s, pick=True):
     if s.axes_manager[0].units == 'nm':
         pixsize = s.axes_manager[0].scale
     elif s.axes_manager[0].units == 'µm':
@@ -63,9 +63,21 @@ def get_props(s, cutoff=None):
         raise ValueError('Unknown spatial units in image')
     segmentation = preprocess(s)
 
-    particles = pick_particles(segmentation)
-
-    props = measure.regionprops(particles, coordinates='xy')
+    if pick:
+        particles = pick_particles(segmentation)
+        props = measure.regionprops(particles, coordinates='xy')
+    else:
+        props = measure.regionprops(segmentation, coordinates='xy')
+        new_props = []
+        for i in range(0, len(props)):
+            diameter = props[i]['equivalent_diameter']
+            major = props[i]['major_axis_length']
+            minor = props[i]['minor_axis_length']
+            diff1 = np.abs((diameter-minor)/diameter)
+            diff2 = np.abs((diameter-major)/diameter)
+            if diff1 < 0.05 and diff2 < 0.05:
+                new_props.append(props[i])
+        props = new_props
 
     diameters = np.array([])
     max_ferets = np.array([])
