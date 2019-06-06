@@ -35,13 +35,13 @@ def pick_particles(segmentation):
 
 
 def preprocess(s, border=5):
-    im_filt = ndimage.median_filter(s.data, 3)
+    im_filt = ndimage.median_filter(s.data, 7)
 
     thresh = filters.threshold_otsu(im_filt)
     im_thresh = im_filt < thresh
 
-    im_thresh = ndimage.binary_erosion(im_thresh, iterations=5)
-    im_thresh = ndimage.binary_dilation(im_thresh, iterations=5)
+    im_thresh = ndimage.binary_erosion(im_thresh, iterations=15)
+    im_thresh = ndimage.binary_dilation(im_thresh, iterations=15)
 
     im_labels = measure.label(im_thresh, background=0)
 
