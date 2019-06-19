@@ -59,19 +59,31 @@ def axsia_to_hspy(filename, calibration_signal=None, im_shape=None):
     axsia['factors'] = axsia['factors'].swap_axes(0, 1)
 
     if calibration_signal:
-        axsia['factors'].axes_manager[1].name = calibration_signal.axes_manager[-1].name
-        axsia['factors'].axes_manager[1].offset = calibration_signal.axes_manager[-1].offset
-        axsia['factors'].axes_manager[1].scale = calibration_signal.axes_manager[-1].scale
-        axsia['factors'].axes_manager[1].units = calibration_signal.axes_manager[-1].units
+        axsia['factors'].axes_manager[1].name = \
+            calibration_signal.axes_manager[-1].name
+        axsia['factors'].axes_manager[1].offset = \
+            calibration_signal.axes_manager[-1].offset
+        axsia['factors'].axes_manager[1].scale = \
+            calibration_signal.axes_manager[-1].scale
+        axsia['factors'].axes_manager[1].units = \
+            calibration_signal.axes_manager[-1].units
 
-        axsia['loadings'].axes_manager[1].name = calibration_signal.axes_manager[0].name
-        axsia['loadings'].axes_manager[1].offset = calibration_signal.axes_manager[0].offset
-        axsia['loadings'].axes_manager[1].scale = calibration_signal.axes_manager[0].scale
-        axsia['loadings'].axes_manager[1].units = calibration_signal.axes_manager[0].units
+        axsia['loadings'].axes_manager[1].name = \
+            calibration_signal.axes_manager[0].name
+        axsia['loadings'].axes_manager[1].offset = \
+            calibration_signal.axes_manager[0].offset
+        axsia['loadings'].axes_manager[1].scale = \
+            calibration_signal.axes_manager[0].scale
+        axsia['loadings'].axes_manager[1].units = \
+            calibration_signal.axes_manager[0].units
 
-        axsia['loadings'].axes_manager[2].name = calibration_signal.axes_manager[1].name
-        axsia['loadings'].axes_manager[2].offset = calibration_signal.axes_manager[1].offset
-        axsia['loadings'].axes_manager[2].scale = calibration_signal.axes_manager[1].scale
-        axsia['loadings'].axes_manager[2].units = calibration_signal.axes_manager[1].units
+        axsia['loadings'].axes_manager[2].name = \
+            calibration_signal.axes_manager[1].name
+        axsia['loadings'].axes_manager[2].offset = \
+            calibration_signal.axes_manager[1].offset
+        axsia['loadings'].axes_manager[2].scale = \
+            calibration_signal.axes_manager[1].scale
+        axsia['loadings'].axes_manager[2].units = \
+            calibration_signal.axes_manager[1].units
 
     return axsia
