@@ -58,7 +58,7 @@ def get_props(s, cutoff=None):
     if s.axes_manager[0].units == 'nm':
         pixsize = s.axes_manager[0].scale
     elif s.axes_manager[0].units == 'µm':
-        pixsize = 1000*s.axes_manager[0].scale
+        pixsize = 1000 * s.axes_manager[0].scale
     else:
         raise ValueError('Unknown spatial units in image')
     segmentation = preprocess(s)
@@ -72,9 +72,9 @@ def get_props(s, cutoff=None):
     min_ferets = np.array([])
 
     for i in range(0, len(props)):
-        d = pixsize*props[i]['equivalent_diameter']
-        maxf = pixsize*props[i]['major_axis_length']
-        minf = pixsize*props[i]['minor_axis_length']
+        d = pixsize * props[i]['equivalent_diameter']
+        maxf = pixsize * props[i]['major_axis_length']
+        minf = pixsize * props[i]['minor_axis_length']
 
         diameters = np.append(diameters, d)
         max_ferets = np.append(max_ferets, maxf)
