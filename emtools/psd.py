@@ -27,10 +27,10 @@ def pick_particles(segmentation):
     coords = np.array(plt.ginput(numpoints, timeout=0, show_clicks=True))
     plt.close()
 
-    particles = np.zeros_like(segmentation)
+    particles = segmentation
     for i in range(0, len(coords)):
         val = segmentation[np.int32(coords[i][1]), np.int32(coords[i][0])]
-        particles[segmentation == val] = val
+        particles[segmentation == val] = 0
     return particles
 
 
@@ -55,7 +55,7 @@ def preprocess(s, thresh=None, border=5):
     return im_labels
 
 
-def get_props(s, cutoff=None, thresh=None, border=None):
+def get_props(s, cutoff=None, thresh=None, border=5):
     if s.axes_manager[0].units == 'nm':
         pixsize = s.axes_manager[0].scale
     elif s.axes_manager[0].units == 'µm':
