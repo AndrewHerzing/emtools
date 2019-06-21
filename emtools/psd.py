@@ -34,10 +34,11 @@ def pick_particles(segmentation):
     return particles
 
 
-def preprocess(s, border=5):
+def preprocess(s, thresh=None, border=5):
     im_filt = ndimage.median_filter(s.data, 3)
 
-    thresh = filters.threshold_otsu(im_filt)
+    if not thresh:
+        thresh = filters.threshold_otsu(im_filt)
     im_thresh = im_filt < thresh
 
     im_thresh = ndimage.binary_erosion(im_thresh, iterations=5)
@@ -54,14 +55,14 @@ def preprocess(s, border=5):
     return im_labels
 
 
-def get_props(s, cutoff=None):
+def get_props(s, cutoff=None, thresh=None, border=None):
     if s.axes_manager[0].units == 'nm':
         pixsize = s.axes_manager[0].scale
     elif s.axes_manager[0].units == 'µm':
         pixsize = 1000 * s.axes_manager[0].scale
     else:
         raise ValueError('Unknown spatial units in image')
-    segmentation = preprocess(s)
+    segmentation = preprocess(s, thresh, border)
 
     particles = pick_particles(segmentation)
 
