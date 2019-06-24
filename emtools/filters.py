@@ -32,27 +32,27 @@ def butter_bpf(data, Dl, Dh, n=1):
     """
 
     height, width = data.shape[-2:]
-    [u, v] = np.meshgrid(np.arange(-np.floor(width/2),
-                         np.floor(width/2)),
-                         np.arange(-np.floor(height/2),
-                         np.floor(height/2)))
+    [u, v] = np.meshgrid(np.arange(-np.floor(width / 2),
+                         np.floor(width / 2)),
+                         np.arange(-np.floor(height / 2),
+                         np.floor(height / 2)))
 
-    uv = u**2+v**2
+    uv = u**2 + v**2
     Duv = np.sqrt(uv)
 
-    butter_lp_kernel = 1/(1+(Duv/Dl**(2*n)))
-    butter_hp_kernel = 1/(1+(0.414*Dh/Duv**(2*n)))
+    butter_lp_kernel = 1 / (1 + (Duv / Dl**(2 * n)))
+    butter_hp_kernel = 1 / (1 + (0.414 * Dh / Duv**(2 * n)))
     kernel = butter_lp_kernel * butter_hp_kernel
 
     out = np.zeros(data.shape, data.dtype)
     if len(data.shape) == 2:
         fftshift = np.fft.fftshift(np.fft.fft2(data))
-        filtered = fftshift*kernel
+        filtered = fftshift * kernel
         out = np.abs(np.fft.ifft2(filtered))
     elif len(data.shape) == 3:
         for i in tqdm.tqdm(range(0, data.shape[0])):
             fftshift = np.fft.fftshift(np.fft.fft2(data[i, :, :]))
-            filtered = fftshift*kernel
+            filtered = fftshift * kernel
             out[i, :, :] = np.float32(np.abs(np.fft.ifft2(filtered)))
     return(out)
 
@@ -96,10 +96,9 @@ def bandFilter(data, in_radius=9, out_radius=60):
     im = data.data
 
     nx, ny = im.shape[1:3]
-    a, b = (nx/2), (ny/2)
-    y, x = np.ogrid[-a:nx-a, -b:nx-b]
-    mask = np.logical_xor(
-                          x**2 + y**2 <= out_radius**2,
+    a, b = (nx / 2), (ny / 2)
+    y, x = np.ogrid[-a:nx - a, -b:nx - b]
+    mask = np.logical_xor(x**2 + y**2 <= out_radius**2,
                           x**2 + y**2 < in_radius**2)
 
     imFreq = np.fft.fft2(im)
