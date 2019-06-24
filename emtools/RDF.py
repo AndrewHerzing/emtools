@@ -15,13 +15,13 @@ def dataOut(xaxis, data, filename):
 
 def azimuthalAverage(image, binsize=0.5):
     y, x = np.indices(image.shape)
-    center = np.array([(x.max()-x.min())/2.0, (y.max()-y.min())/2.0])
+    center = np.array([(x.max() - x.min()) / 2.0, (y.max() - y.min()) / 2.0])
 
     r = np.hypot(x - center[0], y - center[1])
-    nbins = int(np.round(r.max() / binsize)+1)
+    nbins = int(np.round(r.max() / binsize) + 1)
     maxbin = nbins * binsize
-    bins = np.linspace(0, maxbin, nbins+1)
-    bin_centers = (bins[1:]+bins[:-1])/2.0
+    bins = np.linspace(0, maxbin, nbins + 1)
+    bin_centers = (bins[1:] + bins[:-1]) / 2.0
 
     radial_prof = np.histogram(r, bins, weights=(image))[0] / \
         np.histogram(r, bins, weights=np.ones(np.shape(image)))[0]
@@ -42,7 +42,7 @@ def RDF(s, rebinfactor=None, binsize=1):
     profile = Signal1D(profile)
     profile.axes_manager[0].name = 'Frequency'
     profile.axes_manager[0].units = '1/%s' % s.axes_manager[0].units
-    profile.axes_manager[0].offset = xaxis[0]*scale
+    profile.axes_manager[0].offset = xaxis[0] * scale
     profile.axes_manager[0].scale = scale
     return psd, profile, xaxis
 
