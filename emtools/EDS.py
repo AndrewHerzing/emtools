@@ -26,10 +26,10 @@ def plotEDS(spec, axis=None, peaklabels=None, linecolor='red',
             return
         if vert_offset is None:
             vert_min, vert_max = axis.get_ylim()
-            vert_offset = 0.05*vert_max
+            vert_offset = 0.05 * vert_max
         if horz_offset is None:
             horz_min, horz_max = axis.get_xlim()
-            horz_offset = 0.01*horz_max
+            horz_offset = 0.01 * horz_max
         for i in range(0, len(peaklabels)):
             element, line = peaklabels[i].split('_')
             energy = (elements.elements[element]
@@ -37,10 +37,10 @@ def plotEDS(spec, axis=None, peaklabels=None, linecolor='red',
                       ['Xray_lines']
                       [line]
                       ['energy (keV)'])
-            y_pos = spec.isig[energy].data+vert_offset
-            x_pos = energy+horz_offset
+            y_pos = spec.isig[energy].data + vert_offset
+            x_pos = energy + horz_offset
             if y_pos > vert_max:
-                y_pos = vert_max + 0.01*vert_max
+                y_pos = vert_max + 0.01 * vert_max
             if (x_pos < horz_min) or (x_pos > horz_max):
                 pass
             else:

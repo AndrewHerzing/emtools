@@ -13,9 +13,9 @@ JustRed = matplotlib.colors.\
                                       ['black', 'red'],
                                       256, 1.0)
 JustGreen = matplotlib.colors.\
-        LinearSegmentedColormap.from_list('green_colormap',
-                                          ['black', 'green'],
-                                          256, 1.0)
+    LinearSegmentedColormap.from_list('green_colormap',
+                                      ['black', 'green'],
+                                      256, 1.0)
 JustBlue = matplotlib.colors.\
     LinearSegmentedColormap.from_list('blue_colormap',
                                       ['black', 'blue'],
@@ -24,7 +24,7 @@ JustBlue = matplotlib.colors.\
 
 def normalize(image):
     output = image - image.min()
-    output = np.uint8(255*output/output.max())
+    output = np.uint8(255 * output / output.max())
     return(output)
 
 
@@ -45,7 +45,7 @@ def genCMAP(color, alpha=None, N=256):
         cmap = mpl.colors.\
             LinearSegmentedColormap.from_list('my_cmap', ['black', color], N)
         cmap._init()
-        cmap._lut[:, -1] = np.linspace(0, alpha, cmap.N+3)
+        cmap._lut[:, -1] = np.linspace(0, alpha, cmap.N + 3)
     else:
         cmap = mpl.colors.\
             LinearSegmentedColormap.from_list('my_cmap', ['black', color], N)
@@ -71,56 +71,56 @@ def mergeChannels(data, comps=None, colors=None, normalize='individual',
         if normalize == 'individual':
             if colors[i] == 'red':
                 images['red'][:, :, 0] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
             elif colors[i] == 'green':
                 images['green'][:, :, 1] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
             elif colors[i] == 'blue':
                 images['blue'][:, :, 2] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
             elif colors[i] == 'yellow':
                 images['yellow'][:, :, 0] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
                 images['yellow'][:, :, 1] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
             elif colors[i] == 'magenta':
                 images['magenta'][:, :, 0] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
                 images['magenta'][:, :, 2] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
             elif colors[i] == 'cyan':
                 images['cyan'][:, :, 1] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
                 images['cyan'][:, :, 2] = \
-                    data[:, :, comps[i]]/data[:, :, comps[i]].max()
+                    data[:, :, comps[i]] / data[:, :, comps[i]].max()
             else:
                 raise ValueError("Unknown color. Must be red, green, blue, "
                                  "yellow, magenta, or cyan")
         elif normalize == 'global':
             if colors[i] == 'red':
                 images['red'][:, :, 0] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
             elif colors[i] == 'green':
                 images['green'][:, :, 1] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
             elif colors[i] == 'blue':
                 images['blue'][:, :, 2] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
             elif colors[i] == 'yellow':
                 images['yellow'][:, :, 0] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
                 images['yellow'][:, :, 1] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
             elif colors[i] == 'magenta':
                 images['magenta'][:, :, 0] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
                 images['magenta'][:, :, 2] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
             elif colors[i] == 'cyan':
                 images['cyan'][:, :, 1] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
                 images['cyan'][:, :, 2] = \
-                    data[:, :, comps[i]]/data[:, :, comps].max()
+                    data[:, :, comps[i]] / data[:, :, comps].max()
             else:
                 raise ValueError("Unknown color. Must be red, green, blue, "
                                  "yellow, magenta, or cyan.")
