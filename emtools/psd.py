@@ -6,16 +6,19 @@ from scipy import ndimage
 
 def remove_particles(segmentation):
     numpoints = segmentation.max()
+    removed_any = False
     plt.figure(frameon=False)
     plt.imshow(segmentation, cmap='nipy_spectral')
     plt.title('Choose particles to remove...')
     coords = np.array(plt.ginput(numpoints, timeout=0, show_clicks=True))
     plt.close()
-
+    n_removed = len(coords)
+    if n_removed > 0:
+        removed_any = True
     for i in range(0, len(coords)):
         val = segmentation[np.int32(coords[i][1]), np.int32(coords[i][0])]
         segmentation[segmentation == val] = 0
-    return segmentation
+    return segmentation, removed_any, n_removed
 
 
 def pick_particles(segmentation):
@@ -23,14 +26,14 @@ def pick_particles(segmentation):
     # warnings.filterwarnings('ignore')
     plt.figure(frameon=False)
     plt.imshow(segmentation, cmap='nipy_spectral')
-    plt.title('Choose particles to remove...')
+    plt.title('Choose particles ...')
     coords = np.array(plt.ginput(numpoints, timeout=0, show_clicks=True))
     plt.close()
 
-    particles = segmentation
+    particles = np.zeros_like(segmentation)
     for i in range(0, len(coords)):
         val = segmentation[np.int32(coords[i][1]), np.int32(coords[i][0])]
-        particles[segmentation == val] = 0
+        particles[segmentation == val] = val
     return particles
 
 
@@ -56,6 +59,15 @@ def preprocess(s, thresh=None, border=5):
 
 
 def get_props(s, cutoff=None, thresh=None, border=5):
+    results = {}
+    results['filename'] = s.metadata.General.original_filename
+    results['diameters'] = np.array([])
+    results['max_ferets'] = np.array([])
+    results['min_ferets'] = np.array([])
+    results['removed_any'] = False
+    results['n_removed'] = 0
+    results['n_measured'] = 0
+
     if s.axes_manager[0].units == 'nm':
         pixsize = s.axes_manager[0].scale
     elif s.axes_manager[0].units == 'µm':
@@ -64,21 +76,19 @@ def get_props(s, cutoff=None, thresh=None, border=5):
         raise ValueError('Unknown spatial units in image')
     segmentation = preprocess(s, thresh, border)
 
-    particles = pick_particles(segmentation)
+    particles, results['removed_any'], results['n_removed'] = \
+        remove_particles(segmentation)
 
     props = measure.regionprops(particles, coordinates='xy')
-
-    diameters = np.array([])
-    max_ferets = np.array([])
-    min_ferets = np.array([])
+    results['n_measured'] = len(props)
 
     for i in range(0, len(props)):
         d = pixsize * props[i]['equivalent_diameter']
         maxf = pixsize * props[i]['major_axis_length']
         minf = pixsize * props[i]['minor_axis_length']
 
-        diameters = np.append(diameters, d)
-        max_ferets = np.append(max_ferets, maxf)
-        min_ferets = np.append(min_ferets, minf)
+        results['diameters'] = np.append(results['diameters'], d)
+        results['max_ferets'] = np.append(results['max_ferets'], maxf)
+        results['min_ferets'] = np.append(results['min_ferets'], minf)
 
-    return diameters, max_ferets, min_ferets
+    return results
