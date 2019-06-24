@@ -2,6 +2,8 @@ import matplotlib.pylab as plt
 import numpy as np
 from skimage import filters, measure
 from scipy import ndimage
+from scipy.stats.mstats import gmean
+from astropy.stats import bootstrap
 
 
 def remove_particles(segmentation):
@@ -92,3 +94,40 @@ def get_props(s, cutoff=None, thresh=None, border=5):
         results['min_ferets'] = np.append(results['min_ferets'], minf)
 
     return results
+
+
+def bootstrap_analysis(results, props):
+    def test_statistic(x):
+        return np.mean(x), np.median(x)
+
+    data = {}
+    output = {}
+
+    if type(results) is list:
+        if type(props) is list:
+            for j in props:
+                data[j] = np.concatenate([i[j] for i in results])
+        else:
+            data[props] = np.concatenate([i[props] for i in results])
+    elif type(results) is dict:
+        if type(props) is list:
+            for j in props:
+                data[j] = results[j]
+        else:
+            data[props] = results[props]
+
+    for i in data.keys():
+        output[i + "_bootstrap"] = {}
+        result = bootstrap(data[i], 1000, bootfunc=test_statistic)
+        output[i + "_bootstrap"]['Mean95'] = 2 * np.std(result[:, 0])
+        output[i + "_bootstrap"]['Median95'] = 2 * np.std(result[:, 1])
+    return output
+
+
+def get_geometric_stats(data, verbose=False):
+    data_gmean = gmean(data)
+    data_gstd = np.exp(np.sqrt((np.log(data / data_gmean)**2).sum() / len(data)))
+    if verbose:
+        print('Geometric Mean: %.2f' % data_gmean)
+        print('Geometric StdDev: %.2f' % data_gstd)
+    return data_gmean, data_gstd
