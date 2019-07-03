@@ -131,3 +131,18 @@ def get_geometric_stats(data, verbose=False):
         print('Geometric Mean: %.2f' % data_gmean)
         print('Geometric StdDev: %.2f' % data_gstd)
     return data_gmean, data_gstd
+
+
+def csd(data, plot=False, outfile=None):
+    max_val = np.int32(np.ceil(data.max()))
+    csd = np.zeros([max_val, 2])
+    csd[:, 0] = np.arange(0, max_val)
+    for i in range(0, max_val):
+        csd[i, 1] = sum(data < i)
+    if plot:
+        plt.figure()
+        plt.scatter(csd[:, 0], csd[:, 1])
+    if outfile:
+        np.savetxt(outfile, csd, header='Diameter\tCSD\n(nm)\tN.A.',
+                   fmt='%.1f', delimiter='\t')
+    return csd

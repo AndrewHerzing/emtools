@@ -7,9 +7,6 @@ setup(
     version='0.1.0',
     author='Andrew A. Herzing',
     description='Python tools for processing electron microscopy data ',
-    packages=[
-        'emtools',
-        ],
-    install_requires=[
-    ]
+    packages=['emtools', ],
+    install_requires=['astropy', ]
 )
