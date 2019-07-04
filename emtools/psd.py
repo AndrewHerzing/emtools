@@ -126,7 +126,8 @@ def bootstrap_analysis(results, props):
 
 def get_geometric_stats(data, verbose=False):
     data_gmean = gmean(data)
-    data_gstd = np.exp(np.sqrt((np.log(data / data_gmean)**2).sum() / len(data)))
+    data_gstd = np.exp(np.sqrt((np.log(data / data_gmean)**2).sum()
+                               / len(data)))
     if verbose:
         print('Geometric Mean: %.2f' % data_gmean)
         print('Geometric StdDev: %.2f' % data_gstd)
