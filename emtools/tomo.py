@@ -26,7 +26,6 @@ def template_match_opencv(data, template, thresh=0.8,
 
 
 def template_match(data, template, threshold=0.7):
-    # result = data.deepcopy()
     result = match_template(data.data, template.data, pad_input=True)
     points = peak_local_max(result, threshold_abs=threshold)
     return result, points
@@ -59,10 +58,6 @@ def get_surface(s):
         surface.data[i, :, :] = \
             ndimage.binary_fill_holes(surface.data[i, :, :])
         surface.data[i, :, :] = sobel(surface.data[i, :, :])
-        # surface.data[i, :, :] = gaussian(surface.data[i, :, :], sigma=[2, 2])
-    # surface.data = sobel(surface.data)
-    # surface.data = \
-    #     ndimage.generic_gradient_magnitude(surface.data, ndimage.sobel)
     return surface
 
 
