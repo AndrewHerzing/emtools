@@ -15,7 +15,7 @@ except ImportError:
         print('Data will be returned as NumPy arrays')
 
 
-def load_mustem_pacbed(pathname, scanX, scanY, detX, detY):
+def load_mustem_pacbed(pathname, scanXY=None, detXY=None):
     """
     Function to load the output of a muSTEM PACBED simulation.
 
@@ -23,14 +23,10 @@ def load_mustem_pacbed(pathname, scanX, scanY, detX, detY):
     ----------
     pathname : string
         Path to data series
-    scanX : integer
-        Number of probe positions in the x direction
-    scanY : integer
-        Number of probe positions in the y direction
-    detX : integer
-        Size of the simulated patterns in the X direction
-    detY : integer
-        Size of the simulated patterns in the Y direction
+    scanXY : list
+        Integer number of probe positions in the x and y direction
+    detXY : list
+        Size of the simulated patterns in the X and Y direction
 
     Returns
     ----------
@@ -42,9 +38,19 @@ def load_mustem_pacbed(pathname, scanX, scanY, detX, detY):
     files = os.listdir(pathname)
     scans = np.zeros([len(files), 2])
     for i in range(0, len(files)):
-        m = re.search('([0-9]+)_([0-9]+)', files[i])
-        scans[i, :] = np.array([np.int32(m.group(0).split('_')[0]),
-                               np.int32(m.group(0).split('_')[1])])
+        scan_check = re.search('([0-9]+)_([0-9]+)', files[i])
+        scans[i, :] = np.array([np.int32(scan_check.group(0).split('_')[0]),
+                               np.int32(scan_check.group(0).split('_')[1])])
+    if not scanXY:
+        scanY, scanX = np.int32(scans.max(0))
+    else:
+        scanY, scanX = scanXY
+
+    if not detXY:
+        det_check = re.search('([0-9]+)x([0-9]+)', files[0])
+        detY, detX = np.int32(det_check.group(0).split('x'))
+    else:
+        detY, detX = detXY
 
     idx = np.lexsort((scans[:, 1], scans[:, 0])).tolist()
     files_sorted = [None] * len(files)
@@ -52,15 +58,16 @@ def load_mustem_pacbed(pathname, scanX, scanY, detX, detY):
     for i in idx:
         files_sorted[count] = files[i]
         count += 1
-    data = np.zeros([scanX, scanY, detX * detY], np.float32)
+    data = np.zeros([scanX * scanY, detX * detY], np.float32)
 
-    # for i in range(1, scanX + 1):
-    #     for j in range(1, scanY + 1):
-    #         filename = pathname + (rootname % (str(i), str(j)))
-    #         with open(filename, 'rb') as h:
-    #             data[i - 1, j - 1, :] = \
-    #                 np.fromfile(h, count=detX * detY, dtype='>f4')
-    data = data.reshape([scanX, scanY, detX, detY])
+    pos = 0
+    for i in files_sorted:
+        filename = pathname + i
+        with open(filename, 'rb') as h:
+            data[pos, :] = \
+                np.fromfile(h, count=detX * detY, dtype='>f4')
+        pos += 1
+    data = data.reshape([scanY, scanX, detY, detX])
     if pixstem_is_installed:
         s = ps.PixelatedSTEM(data)
     elif hyperspy_is_installed:
