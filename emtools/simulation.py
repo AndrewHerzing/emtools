@@ -1,18 +1,14 @@
 import numpy as np
 import os
 import re
+import hyperspy.api as hs
 pixstem_is_installed = False
 hyperspy_is_installed = False
 try:
     import pixstem.api as ps
     pixstem_is_installed = True
 except ImportError:
-    try:
-        import hyperspy.api as hs
-        hyperspy_is_installed = True
-    except ImportError:
-        print('Missing both Pixstem and Hyperspy.')
-        print('Data will be returned as NumPy arrays')
+    print('Pixstem not installed.')
 
 
 def load_mustem_pacbed(pathname, scanXY=None, detXY=None):
@@ -164,7 +160,7 @@ def write_xtl(input_filename, output_filename, title='Phase', n_elements=1,
     return
 
 
-def open_muSTEM_binary(filename):
+def load_mustem_binary(filename):
     """
     Function to read the binary file output from muSTEM simulation.
 
@@ -193,4 +189,4 @@ def open_muSTEM_binary(filename):
         dtype = '>f8'
     # Read data and reshape as required.
     data = np.reshape(np.fromfile(filename, dtype=dtype), (y, x))
-    return data
+    return hs.signals.Signal2D(data)
