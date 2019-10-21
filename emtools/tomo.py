@@ -37,21 +37,39 @@ def template_match(data, template, threshold=0.5):
 
 
 def threshold_particles(data, threshold=0.5, return_labels=False):
-    scaleX = data.axes_manager[1].scale
-    scaleY = data.axes_manager[0].scale
-    scaleZ = data.axes_manager[2].scale
+    if len(data.data.shape) == 3:
+        scaleX = data.axes_manager[1].scale
+        scaleY = data.axes_manager[0].scale
+        scaleZ = data.axes_manager[2].scale
 
-    offsetX = data.axes_manager[1].offset
-    offsetY = data.axes_manager[0].offset
-    offsetZ = data.axes_manager[2].offset
+        offsetX = data.axes_manager[1].offset
+        offsetY = data.axes_manager[0].offset
+        offsetZ = data.axes_manager[2].offset
 
-    label_image = label(data.data > threshold * data.data.max())
-    label_image = hs.signals.Signal2D(label_image)
-    regions = regionprops(label_image.data)
+        label_image = label(data.data > threshold * data.data.max())
+        label_image = hs.signals.Signal2D(label_image)
+        regions = regionprops(label_image.data)
 
-    data.original_metadata.points = np.asarray([(i.centroid) for i in regions])
-    data.original_metadata.points_cal = data.original_metadata.points * \
-        [scaleY, scaleX, scaleZ] + [offsetY, offsetZ, offsetX]
+        data.original_metadata.points = \
+            np.asarray([(i.centroid) for i in regions])
+        data.original_metadata.points_cal = data.original_metadata.points * \
+            [scaleY, scaleX, scaleZ] + [offsetY, offsetZ, offsetX]
+
+    elif len(data.data.shape) == 2:
+        scaleX = data.axes_manager[1].scale
+        scaleY = data.axes_manager[0].scale
+
+        offsetX = data.axes_manager[1].offset
+        offsetY = data.axes_manager[0].offset
+
+        label_image = label(data.data > threshold * data.data.max())
+        label_image = hs.signals.Signal2D(label_image)
+        regions = regionprops(label_image.data)
+
+        data.original_metadata.points = \
+            np.asarray([(i.centroid) for i in regions])
+        data.original_metadata.points_cal = data.original_metadata.points * \
+            [scaleX, scaleY] + [offsetX, offsetY]
 
     if return_labels:
         return data, label_image, regions
@@ -79,115 +97,172 @@ def plot_points(data, index):
     return
 
 
-def plot_all_points(data, axes=['XZ', 'XY'], cmap='inferno'):
-    if 'points_cal' in data.original_metadata.keys():
-        points_cal = data.original_metadata.points_cal
-    else:
-        raise ValueError('No points found in metadata')
-    maximageXZ = data.max()
-
-    maximageXY = data.max(2).as_signal2D((1, 0))
-
-    axes = hs.plot.plot_images([maximageXZ, maximageXY],
-                               per_row=2, scalebar='all',
-                               colorbar=None, axes_decor='off', cmap=cmap)
-    axes[0].plot(points_cal[:, 2], points_cal[:, 1], 'ro', markersize=2)
-    axes[1].plot(points_cal[:, 2], points_cal[:, 0], 'ro', markersize=2)
-
-    return axes
-
-
 def get_surface(data, blur_sigma=3, canny_sigma=0.1):
+    out = data.deepcopy()
     blur = gaussian(data.data, sigma=blur_sigma)
     thresh_val = threshold_otsu(blur)
     thresholded = blur > thresh_val
     edges = np.zeros_like(thresholded.data)
-    for i in range(thresholded.shape[0]):
-        edges[i, :, :] = canny(thresholded[i, :, :], sigma=canny_sigma)
-    edges = hs.signals.Signal2D(edges)
-    return edges
+    if len(data.data.shape) == 3:
+        for i in range(thresholded.shape[0]):
+            edges[i, :, :] = canny(thresholded[i, :, :], sigma=canny_sigma)
+    else:
+        edges = canny(thresholded, sigma=canny_sigma)
+
+    out.data = edges
+    return out
 
 
-def output_stats(mindistance, scale):
+def output_stats(mindistance):
     print('Statistical Output')
     print('------------------------')
+    print('Number of particles measured: %s' % str(len(mindistance)))
     print('Mean distance (nm): %.1f' %
-          float(scale * mindistance.mean()))
+          float(mindistance.mean()))
     print('Standard Deviation (nm): %.1f' %
-          float(scale * mindistance.std()))
+          float(mindistance.std()))
     print('Minimum measured distance (nm): %.1f' %
-          float(scale * mindistance.min()))
+          float(mindistance.min()))
     print('Maximum measured distance (nm): %.1f' %
-          float(scale * mindistance.max()))
+          float(mindistance.max()))
     return
 
 
 def distance_calc(surface, data, print_stats=False):
     points = data.original_metadata.points
-    scale = data.axes_manager[1].scale
+    scaleX = data.axes_manager[1].scale
+    scaleY = data.axes_manager[0].scale
+    offsetX = data.axes_manager[1].offset
+    offsetY = data.axes_manager[0].offset
     mindistance = np.zeros(len(points))
-    minloc = np.zeros([len(points), 3])
     surfacepoints = np.array(np.where(surface.data)).T
-    for i in range(0, len(points)):
-        distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
-        mindistance[i] = distance.min()
-        minindex = np.argmin(distance)
-        minloc[i, :] = surfacepoints[minindex, :]
+    if len(data.data.shape) == 3:
+        scaleZ = data.axes_manager[2].scale
+        offsetZ = data.axes_manager[2].offset
+        minloc = np.zeros([len(points), 3])
+        for i in range(0, len(points)):
+            distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
+            mindistance[i] = distance.min()
+            minindex = np.argmin(distance)
+            minloc[i, :] = surfacepoints[minindex, :]
 
+        minloc_cal = minloc * [scaleY, scaleX, scaleZ] + \
+            [offsetY, offsetZ, offsetX]
+        mindistance_cal = mindistance * scaleX
+
+    elif len(data.data.shape) == 2:
+        minloc = np.zeros([len(points), 2])
+        for i in range(0, len(points)):
+            distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
+            mindistance[i] = distance.min()
+            minindex = np.argmin(distance)
+            minloc[i, :] = surfacepoints[minindex, :]
+        minloc_cal = minloc * [scaleX, scaleY] + [offsetX, offsetY]
+        mindistance_cal = mindistance * scaleX
     if print_stats:
-        output_stats(mindistance, scale)
+        output_stats(mindistance, scaleX)
 
     data.original_metadata.minloc = minloc
+    data.original_metadata.minloc_cal = minloc_cal
     data.original_metadata.mindistance = mindistance
+    data.original_metadata.mindistance_cal = mindistance_cal
     return data
 
 
-def plot_result(edge_signal, idx, data_signal, display='edges', axis='XZ'):
-    if display == 'edges':
-        particle_loc = data_signal.original_metadata.points[idx]
-        edge_loc = data_signal.original_metadata.minloc[idx]
-        imageXZ = edge_signal.inav[edge_loc[0]]
-        imageYZ = edge_signal.isig[edge_loc[2], :].as_signal2D((0, 1))
-        imageXY = edge_signal.isig[:, edge_loc[1]].as_signal2D((1, 0))
-
-    elif display == 'data':
-        scaleY = data_signal.axes_manager[0].scale
-        offsetY = data_signal.axes_manager[0].offset
-        scaleX = data_signal.axes_manager[1].scale
-        offsetX = data_signal.axes_manager[1].offset
-        scaleZ = data_signal.axes_manager[2].scale
-        offsetZ = data_signal.axes_manager[2].offset
-
+def plot_result(data_signal, edge_signal, idx=None,
+                display='edges', axis='XZ'):
+    if len(data_signal.data.shape) == 3:
         particle_loc = data_signal.original_metadata.points_cal[idx]
-        edge_loc = data_signal.original_metadata.minloc[idx]
-        edge_loc = [scaleY, scaleZ, scaleX] * edge_loc +\
-            [offsetY, offsetZ, offsetX]
+        edge_loc = data_signal.original_metadata.minloc_cal[idx]
 
-        imageXZ = data_signal.inav[edge_loc[0]]
-        imageYZ = data_signal.isig[edge_loc[2], :].as_signal2D((1, 0))
-        imageXY = data_signal.isig[:, edge_loc[1]].as_signal2D((1, 0))
-    else:
-        raise ValueError(
-            "Unknown display option '%s'. Must be 'data' or 'edges'" % display)
+        if axis == 'XZ' or axis == 'ZX':
+            imageXZ = data_signal.inav[edge_loc[0]]
+            imageXZ.data[edge_signal.inav[edge_loc[0]].data] = \
+                1.1 * imageXZ.data.max()
+            imageXZ.plot(cmap='gray')
+            ax = plt.gca()
+            ax.plot([particle_loc[2], edge_loc[2]],
+                    [particle_loc[1], edge_loc[1]],
+                    '-wo')
+            ax.plot(edge_loc[2], edge_loc[1],
+                    'o', color='b', alpha=0.5)
+            ax.plot(particle_loc[2], particle_loc[1],
+                    'o', color='r', alpha=0.5)
 
-    if axis == 'XZ' or axis == 'ZX':
-        imageXZ.plot(cmap='gray')
+        elif axis == 'XY' or axis == 'YX':
+            imageXY = data_signal.isig[:, edge_loc[1]].as_signal2D((1, 0))
+            imageXY.data[edge_signal.isig[:, edge_loc[1]].data] = \
+                1.1 * imageXY.data.max()
+            imageXY.plot(cmap='gray')
+            ax = plt.gca()
+
+            ax.plot([particle_loc[2], edge_loc[2]],
+                    [particle_loc[0], edge_loc[0]],
+                    '-wo')
+            ax.plot(edge_loc[2], edge_loc[0],
+                    'o', color='b')
+            ax.plot(particle_loc[2], particle_loc[0],
+                    'o', color='r')
+
+        elif axis == 'YZ' or axis == 'ZY':
+            imageYZ = data_signal.isig[edge_loc[2], :].as_signal2D((1, 0))
+            imageYZ.data[edge_signal.isig[edge_loc[2], :].data] = \
+                1.1 * imageYZ.data.max()
+            imageYZ.plot(cmap='gray')
+            ax = plt.gca()
+            ax.plot([particle_loc[1], edge_loc[1]],
+                    [particle_loc[0], edge_loc[0]],
+                    '-wo')
+            ax.plot(edge_loc[1], edge_loc[0], 'o', color='b', alpha=0.5)
+            ax.plot(particle_loc[1], particle_loc[0],
+                    'o', color='r', alpha=0.5)
+
+        elif axis == 'XYall' or 'XZall' or 'YZall':
+            particle_loc = data_signal.original_metadata.points_cal
+            edge_loc = data_signal.original_metadata.minloc_cal
+            if axis == 'XZall':
+                maximageXZ = data_signal.max()
+                maximageXZ.plot(cmap='afmhot')
+                ax = plt.gca()
+
+                _ = ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
+                            [particle_loc[:, 1], edge_loc[:, 1]],
+                            '-o')
+
+            elif axis == 'XYall':
+                maximageXY = data_signal.max(2).as_signal2D((1, 0))
+                maximageXY.plot(cmap='afmhot')
+                ax = plt.gca()
+
+                _ = ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
+                            [particle_loc[:, 0], edge_loc[:, 0]],
+                            '-o')
+
+            elif axis == 'YZall':
+                maximageXY = data_signal.max(1).as_signal2D((1, 0))
+                maximageXY.plot(cmap='afmhot')
+                ax = plt.gca()
+
+                _ = ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
+                            [particle_loc[:, 0], edge_loc[:, 0]],
+                            '-o')
+        else:
+            raise ValueError('Unknown axis: %s' % axis)
+
+    elif len(data_signal.data.shape) == 2:
+        plot_signal = data_signal.deepcopy()
+        particle_loc = data_signal.original_metadata.points_cal
+        edge_loc = data_signal.original_metadata.minloc_cal
+
+        plot_signal.data[edge_signal.data] = 1.1 * plot_signal.data.max()
+        plot_signal.plot(cmap='gray')
         ax = plt.gca()
-        ax.plot(edge_loc[2], edge_loc[1], 'o', color='b', alpha=0.5)
-        ax.plot(particle_loc[2], particle_loc[1], 'o', color='r', alpha=0.5)
-    elif axis == 'XY' or axis == 'YX':
-        imageXY.plot(cmap='gray')
-        ax = plt.gca()
-        ax.plot(edge_loc[2], edge_loc[0], 'o', color='b', alpha=0.5)
-        ax.plot(particle_loc[2], particle_loc[0], 'o', color='r', alpha=0.5)
-    elif axis == 'YZ' or axis == 'ZY':
-        imageYZ.plot(cmap='gray')
-        ax = plt.gca()
-        ax.plot(edge_loc[1], edge_loc[0], 'o', color='b', alpha=0.5)
-        ax.plot(particle_loc[1], particle_loc[0], 'o', color='r', alpha=0.5)
-    else:
-        raise ValueError('Unknown axis: %s' % axis)
-    return
+
+        _ = ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
+                    [particle_loc[:, 0], edge_loc[:, 0]],
+                    '-o')
+    fig = plt.gcf()
+    return fig
 
 
 def get_particle_distances(stack, verbose=True):
@@ -201,8 +276,7 @@ def get_particle_distances(stack, verbose=True):
         print('Calculating particle-surface distances...')
         stack = distance_calc(edges, stack, print_stats=False)
         print('Done!')
-        output_stats(stack.original_metadata.mindistance,
-                     stack.axes_manager[1].scale)
+        output_stats(stack.original_metadata.mindistance_cal)
     else:
         stack = threshold_particles(stack, threshold=0.5, return_labels=False)
         edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
