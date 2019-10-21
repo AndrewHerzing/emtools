@@ -108,6 +108,20 @@ def get_surface(data, blur_sigma=3, canny_sigma=0.1):
     return edges
 
 
+def output_stats(mindistance, scale):
+    print('Statistical Output')
+    print('------------------------')
+    print('Mean distance (nm): %.1f' %
+          float(scale * mindistance.mean()))
+    print('Standard Deviation (nm): %.1f' %
+          float(scale * mindistance.std()))
+    print('Minimum measured distance (nm): %.1f' %
+          float(scale * mindistance.min()))
+    print('Maximum measured distance (nm): %.1f' %
+          float(scale * mindistance.max()))
+    return
+
+
 def distance_calc(surface, data, print_stats=False):
     points = data.original_metadata.points
     scale = data.axes_manager[1].scale
@@ -121,16 +135,7 @@ def distance_calc(surface, data, print_stats=False):
         minloc[i, :] = surfacepoints[minindex, :]
 
     if print_stats:
-        print('Statistical Output')
-        print('------------------------')
-        print('Mean distance (nm): %.1f' %
-              float(scale * mindistance.mean()))
-        print('Standard Deviation (nm): %.1f' %
-              float(scale * mindistance.std()))
-        print('Minimum measured distance (nm): %.1f' %
-              float(scale * mindistance.min()))
-        print('Maximum measured distance (nm): %.1f' %
-              float(scale * mindistance.max()))
+        output_stats(mindistance, scale)
 
     data.original_metadata.minloc = minloc
     data.original_metadata.mindistance = mindistance
@@ -183,3 +188,24 @@ def plot_result(edge_signal, idx, data_signal, display='edges', axis='XZ'):
     else:
         raise ValueError('Unknown axis: %s' % axis)
     return
+
+
+def get_particle_distances(stack, verbose=True):
+    if verbose:
+        print('Locating particle centroids...')
+        stack = threshold_particles(stack, threshold=0.5, return_labels=False)
+        print('Done!')
+        print('Locating surface of volume...')
+        edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
+        print('Done!')
+        print('Calculating particle-surface distances...')
+        stack = distance_calc(edges, stack, print_stats=False)
+        print('Done!')
+        output_stats(stack.original_metadata.mindistance,
+                     stack.axes_manager[1].scale)
+    else:
+        stack = threshold_particles(stack, threshold=0.5, return_labels=False)
+        edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
+        stack = distance_calc(edges, stack, print_stats=False)
+
+    return stack, edges
