@@ -266,6 +266,8 @@ def plot_result(data_signal, edge_signal, idx=None,
 
 
 def get_particle_distances(stack, verbose=True):
+    for i in range(len(stack.data.shape)):
+        stack.axes_manager[i].offset = 0
     if verbose:
         print('Locating particle centroids...')
         stack = threshold_particles(stack, threshold=0.5, return_labels=False)
