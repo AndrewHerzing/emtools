@@ -265,12 +265,13 @@ def plot_result(data_signal, edge_signal, idx=None,
     return fig
 
 
-def get_particle_distances(stack, verbose=True):
+def get_particle_distances(stack, verbose=True, threshold=0.5):
     for i in range(len(stack.data.shape)):
         stack.axes_manager[i].offset = 0
     if verbose:
         print('Locating particle centroids...')
-        stack = threshold_particles(stack, threshold=0.5, return_labels=False)
+        stack = threshold_particles(stack, threshold=threshold,
+                                    return_labels=False)
         print('Done!')
         print('Locating surface of volume...')
         edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
@@ -280,7 +281,8 @@ def get_particle_distances(stack, verbose=True):
         print('Done!')
         output_stats(stack.original_metadata.mindistance_cal)
     else:
-        stack = threshold_particles(stack, threshold=0.5, return_labels=False)
+        stack = threshold_particles(stack, threshold=threshold,
+                                    return_labels=False)
         edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
         stack = distance_calc(edges, stack, print_stats=False)
 
