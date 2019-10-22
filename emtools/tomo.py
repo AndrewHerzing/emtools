@@ -225,27 +225,27 @@ def plot_result(data_signal, edge_signal, idx=None,
                 maximageXZ.plot(cmap='afmhot')
                 ax = plt.gca()
 
-                _ = ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
-                            [particle_loc[:, 1], edge_loc[:, 1]],
-                            '-o')
+                ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
+                        [particle_loc[:, 1], edge_loc[:, 1]],
+                        '-o')
 
             elif axis == 'XYall':
                 maximageXY = data_signal.max(2).as_signal2D((1, 0))
                 maximageXY.plot(cmap='afmhot')
                 ax = plt.gca()
 
-                _ = ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
-                            [particle_loc[:, 0], edge_loc[:, 0]],
-                            '-o')
+                ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
+                        [particle_loc[:, 0], edge_loc[:, 0]],
+                        '-o')
 
             elif axis == 'YZall':
                 maximageXY = data_signal.max(1).as_signal2D((1, 0))
                 maximageXY.plot(cmap='afmhot')
                 ax = plt.gca()
 
-                _ = ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
-                            [particle_loc[:, 0], edge_loc[:, 0]],
-                            '-o')
+                ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
+                        [particle_loc[:, 0], edge_loc[:, 0]],
+                        '-o')
         else:
             raise ValueError('Unknown axis: %s' % axis)
 
