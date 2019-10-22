@@ -258,9 +258,9 @@ def plot_result(data_signal, edge_signal, idx=None,
         plot_signal.plot(cmap='gray')
         ax = plt.gca()
 
-        _ = ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
-                    [particle_loc[:, 0], edge_loc[:, 0]],
-                    '-o')
+        ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
+                [particle_loc[:, 0], edge_loc[:, 0]],
+                '-o')
     fig = plt.gcf()
     return fig
 
