@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+Tomo module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 import numpy as np
 import matplotlib.pylab as plt
 import hyperspy.api as hs
@@ -8,6 +18,28 @@ from scipy import signal
 
 
 def template_match(data, template, threshold=0.5):
+    """
+    Locate particles in volume using template matching.
+
+    Args
+    ----------
+    data : Hyperspy Signal2D
+        Volumetric data containing particles
+    template : Hyperspy Signal2D
+        Particle template to match to data
+    threshold : float
+        Fraction of the maximum value of the template matching result. Regions
+        of the matching result above this value are identified as particles.
+
+    Returns
+    ----------
+    data : Hyperspy Signal2D
+        Modified version of the input data with the centroid location added to
+        the metadata.  Absolute coordinates and calibrated positions are stored
+        in data.original_metadata.points and data.original_metadata.points_cal,
+        respectively.
+
+    """
     scaleX = data.axes_manager[1].scale
     scaleY = data.axes_manager[0].scale
     scaleZ = data.axes_manager[2].scale
@@ -37,6 +69,35 @@ def template_match(data, template, threshold=0.5):
 
 
 def threshold_particles(data, threshold=0.5, return_labels=False):
+    """
+    Locate particles in volume using binary sementation.
+
+    Args
+    ----------
+    data : Hyperspy Signal2D
+        Volumetric data containing particles
+    threshold : float
+        Fraction of the maximum value of the data to use as segmentation
+        threshold.
+    return_labels : bool
+        If True, return the data with particle locations, the segmentation
+        image, and the region properties.  If False, retun only the data with
+        particle locations.  Default is False.
+
+    Returns
+    ----------
+    data : Hyperspy Signal2D
+        Modified version of the input data with the centroid location added to
+        the metadata.  Absolute coordinates and calibrated positions are stored
+        in data.original_metadata.points and data.original_metadata.points_cal,
+        respectively.
+    label_image : Hyperspy Signal2D
+        Segmented image with all idenitified particle regions assigned a unique
+        grayscale value.
+    regions : list
+        Results of region_props analysis of each individual labeled particle.
+
+    """
     if len(data.data.shape) == 3:
         scaleX = data.axes_manager[1].scale
         scaleY = data.axes_manager[0].scale
@@ -78,6 +139,17 @@ def threshold_particles(data, threshold=0.5, return_labels=False):
 
 
 def plot_points(data, index):
+    """
+    Plot data with single particle location indicated.
+
+    Args
+    ----------
+    data : Hyperspy Signal2D
+        Volumetric data containing particles and their locations.
+    index : int
+        Particle location to plot.
+
+    """
     if 'points' in data.original_metadata.keys():
         points = data.original_metadata.points
     else:
@@ -98,22 +170,51 @@ def plot_points(data, index):
 
 
 def get_surface(data, blur_sigma=3, canny_sigma=0.1):
-    out = data.deepcopy()
+    """
+    Locate the surface of the agglomerate in a reconstructed tomogram.
+
+    Args
+    ----------
+    data : Hyperspy Signal2D
+        Volumetric data
+    blur_sigma : float
+        Sigma value to provide the Gaussian blur function.
+    canny_sigma : float
+        Sigma value to provide the Canny edge detection function.
+
+    Returns
+    ----------
+    edges : Hyperspy Signal2D
+        Copy of the input data after edge detection.  Underlying data is a
+        boolean array, with True values at the edge of the agglomerate and
+        False values everywhere else.
+
+    """
+    edges = data.deepcopy()
     blur = gaussian(data.data, sigma=blur_sigma)
     thresh_val = threshold_otsu(blur)
     thresholded = blur > thresh_val
-    edges = np.zeros_like(thresholded.data)
+    edges.data = np.zeros_like(thresholded.data)
     if len(data.data.shape) == 3:
         for i in range(thresholded.shape[0]):
-            edges[i, :, :] = canny(thresholded[i, :, :], sigma=canny_sigma)
+            edges.data[i, :, :] = canny(thresholded[i, :, :],
+                                        sigma=canny_sigma)
     else:
-        edges = canny(thresholded, sigma=canny_sigma)
+        edges.data = canny(thresholded, sigma=canny_sigma)
 
-    out.data = edges
-    return out
+    return edges
 
 
 def output_stats(mindistance):
+    """
+    Print statistics of an array to the terminal.
+
+    Args
+    ----------
+    mindistance : Numpy array
+        Calculated minimum distance to the surface for all particles.
+
+    """
     print('Statistical Output')
     print('------------------------')
     print('Number of particles measured: %s' % str(len(mindistance)))
@@ -129,6 +230,32 @@ def output_stats(mindistance):
 
 
 def distance_calc(surface, data, print_stats=False):
+    """
+    Calculate distance of all particles from the agglomerate surface.
+
+    Args
+    ----------
+    surface : Hyperspy Signal2D
+        Signal containing the indicating the location of the agglomerate
+        surface.
+    data : Hyperspy Signal2D
+        Volumetric data containing particle locations
+    print_stats : bool
+        If True, print statistical properties of the calculated distances.
+
+    Returns
+    ----------
+    data : Hyperspy Signal2D
+        Modified version of the input data with the calculated distances and
+        the location of the nearest surface location added to the metadata.
+        Absolute distances and calibrated distances are stored in
+        data.original_metadata.mindistance and
+        data.original_metadata.mindistance_cal, respectively. Absolute
+        coordinates of the surface locations and the calibrated coordinates are
+        stored in data.original_metadata.minloc and
+        data.original_metadata.minloc_cal, respectively.
+
+    """
     points = data.original_metadata.points
     scaleX = data.axes_manager[1].scale
     scaleY = data.axes_manager[0].scale
@@ -169,8 +296,33 @@ def distance_calc(surface, data, print_stats=False):
     return data
 
 
-def plot_result(data_signal, edge_signal, idx=None,
-                display='edges', axis='XZ'):
+def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
+    """
+    Plot particle distance measurement results overlain with tomogram.
+
+    Args
+    ----------
+    data_signal : Hyperspy Signal2D
+        Tomographic reconstruction with particle distance results in metadata.
+    edge_signal : Hyperspy Signal2D
+        Signal containing location of the particle surface after Canny edge
+        processing.
+    idx : int or None
+        Index of the particle to be displayed.
+    axis : str
+        Axis along which to integrate the tomogram for display.  If 'axis' is
+        one of the following: 'XZ', 'YZ', 'XY', 'YX', 'ZY', 'ZX', the
+        nearest slice along this axis in the tomogram to the point defined by
+        'idx' is displayed along with the identified surface pixels.  If 'axis'
+        is 'XZall', 'YZall', or 'XYall', the tomogram is integrated along the
+        axis and all points, minimum surface distances, and the projected edge
+        pixels are displayed.
+
+    Returns
+    ----------
+    fig : Matplotlib Figure
+
+    """
     if len(data_signal.data.shape) == 3:
         particle_loc = data_signal.original_metadata.points_cal[idx]
         edge_loc = data_signal.original_metadata.minloc_cal[idx]
@@ -266,6 +418,37 @@ def plot_result(data_signal, edge_signal, idx=None,
 
 
 def get_particle_distances(stack, verbose=True, threshold=0.5):
+    """
+    Perform the entire particle-surface distance workflow.
+
+    Args
+    ----------
+    stack : Hyperspy Signal2D or TomoStack
+        Tomographic reconstruction to be analyzed.
+    verbose : str
+        If True, progress updates at each point and the measurement results
+        to the terminal. Default is True.
+    threshold : float
+        Fraction of the maximum value of the template matching result. Regions
+        of the matching result above this value are identified as particles.
+
+    Returns
+    ----------
+    stack : Hyperspy Signal2D
+        Modified version of the input data with the calculated distances and
+        the location of the nearest surface location added to the metadata.
+        Absolute distances and calibrated distances are stored in
+        data.original_metadata.mindistance and
+        data.original_metadata.mindistance_cal, respectively. Absolute
+        coordinates of the surface locations and the calibrated coordinates are
+        stored in data.original_metadata.minloc and
+        data.original_metadata.minloc_cal, respectively.
+    edges : Hyperspy Signal2D
+        Signal with the same dimensions as 'stack' where data is boolean array
+        indicating the surface pixel locations.
+
+
+    """
     for i in range(len(stack.data.shape)):
         stack.axes_manager[i].offset = 0
     if verbose:

@@ -1,9 +1,29 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+IO module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 from scipy.io import savemat, loadmat
 import numpy as np
 import hyperspy.api as hs
 
 
 def save_axsia(s, filename=None):
+    """
+    Save a Hyperspy signal in an AXSIA-ready Matlab file.
+
+    Args
+    ----------
+    s : Hyperspy Signal2D
+    filename : string
+        Name for output .MAT file
+
+    """
     if not filename:
         filename = 'matlab.mat'
     savedict = {}
@@ -22,6 +42,19 @@ def save_axsia(s, filename=None):
 
 
 def axsia_to_hspy(filename, calibration_signal=None, im_shape=None):
+    """
+    Load output of MVSA analysis from AXSIA software as a Hyperspy signal.
+
+    Args
+    ----------
+    filename : string
+        Name for AXSIA output file to load
+    calibration_signal : Hyperspy Signal2D
+        Signal from which to get calibration info
+    im_shape : tuple
+        Number of rows and columns of the original dataset.
+
+    """
     axsia = {}
 
     axsia_in = loadmat(filename)

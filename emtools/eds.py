@@ -1,20 +1,65 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+EDS module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 from hyperspy.misc import elements
 from matplotlib import pylab as plt
 
 
-def plotEDS(spec, axis=None, peaklabels=None, linecolor='red',
-            energyrange=None, intensityrange=None, horz_offset=None,
-            vert_offset=None, fontsize=8):
+def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
+             energy_range=None, intensity_range=None, horz_offset=None,
+             vert_offset=None, font_size=8):
+    """
+    Plot several EDS spectra.
+
+    Args
+    ----------
+    spec : Hyperspy Signal1D
+        Single EDS spectrum signal
+    axis : Matplotlib axis
+        Axis in which to plot the data.  If None, a new Figure and Axis are
+        created
+    peak_labels : bool or list
+        If True, label the peaks defined in spec.metadata.Sample.xray_lines.
+        If list, the listed peaks are labeled.
+    line_color : string
+        Color for the spectral plots
+    energy_range : tuple
+        Plot is truncated horizonatally to the minimum and maximum value
+    intensity_range : tuple
+        Plot is truncated vertically to the minimum and maximum value
+    horz_offset : float
+        Offset from peak location (in calibrated values) with which to offset
+        the labels in the horizontal direction
+    vert_offset : float
+        Offset from peak location (in calibrated values) with which to offset
+        the labels in the vertical direction
+    font_size : int
+        Fontsize for labels
+
+
+    Returns
+    ----------
+    figure : Matplotlib Figure instance
+    axis : Matplotlib Axis instance
+
+    """
     if axis is None:
         figure, axis = plt.subplots(1)
         out = True
     else:
         out = False
-    axis.plot(spec.axes_manager[-1].axis, spec.data, color=linecolor)
-    if energyrange:
-        axis.set_xlim(energyrange[0], energyrange[1])
-    if intensityrange:
-        axis.set_ylim(intensityrange[0], intensityrange[1])
+    axis.plot(spec.axes_manager[-1].axis, spec.data, color=line_color)
+    if energy_range:
+        axis.set_xlim(energy_range[0], energy_range[1])
+    if intensity_range:
+        axis.set_ylim(intensity_range[0], intensity_range[1])
     if peaklabels:
         if peaklabels is True:
             peaklabels = spec.metadata.Sample.xray_lines
@@ -49,8 +94,8 @@ def plotEDS(spec, axis=None, peaklabels=None, linecolor='red',
                           s=peaklabels[i],
                           rotation=90,
                           rotation_mode='anchor',
-                          size=fontsize)
+                          size=font_size)
     if out:
-        return(figure, axis)
+        return figure, axis
     else:
         return

@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+PSD module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 import matplotlib.pylab as plt
 import numpy as np
 from skimage import filters, measure
@@ -7,6 +17,24 @@ from astropy.stats import bootstrap
 
 
 def remove_particles(segmentation):
+    """
+    Remove particles from segmentation via user interaction.
+
+    Args
+    ----------
+    segmentation : Numpy array
+        Segmented label image
+
+    Returns
+    ----------
+    segmentation : Numpy array
+        Segmented label image after particle removal
+    removed_any : bool
+        True if any particles were removed.  Otherwise, False
+    n_removed : int
+        Number of particles removed from image
+
+    """
     numpoints = segmentation.max()
     removed_any = False
     plt.figure(frameon=False)
@@ -24,6 +52,20 @@ def remove_particles(segmentation):
 
 
 def pick_particles(segmentation):
+    """
+    Allow user to locate a particle in a segmented image interactively.
+
+    Args
+    ----------
+    segmentation : Numpy array
+        Segmented label image
+
+    Returns
+    ----------
+    particles : int
+        Value associated with the chosen particle
+
+    """
     numpoints = segmentation.max()
     # warnings.filterwarnings('ignore')
     plt.figure(frameon=False)
@@ -40,6 +82,27 @@ def pick_particles(segmentation):
 
 
 def preprocess(s, thresh=None, border=5):
+    """
+    Segment the particles in an image.
+
+    Args
+    ----------
+    s : Hyperspy Signal2D
+    thresh : float
+        Value above which to segment the particles.  If not defined, Otsu's
+        method will be used to determine this value.
+    border : int
+        Number of pixels near the edges of the image to ignore.  If a particle
+        is found which touches this border region it is eliminated from the
+        segmentation
+
+    Return
+    ----------
+    im_labels : Numpy array
+        Segmented version of the input image with each isolated particle
+        assigned a unique integer value.
+
+    """
     im_filt = ndimage.median_filter(s.data, 3)
 
     if not thresh:
@@ -60,7 +123,31 @@ def preprocess(s, thresh=None, border=5):
     return im_labels
 
 
-def get_props(s, cutoff=None, thresh=None, border=5):
+def get_props(s, thresh=None, border=5):
+    """
+    Analyze a segmented image to determine particle properties.
+
+    Args
+    ----------
+    s : Hyperspy Signal2D
+    thresh : float
+        Value above which to segment the particles.  If not defined, Otsu's
+        method will be used to determine this value.
+    border : int
+        Number of pixels near the edges of the image to ignore.  If a particle
+        is found which touches this border region it is eliminated from the
+        segmentation.
+
+    Returns
+    ----------
+    results : dict
+        Dictionary containing the results of the analysis including the
+        original filename, diameter, maximum feret diameter, and minimum feret
+        diameter.  Also included is an indication of whether any particles
+        were eliminated fro the segmentaiton by the user, how many were,
+        removed, and how many were measured.
+
+    """
     results = {}
     results['filename'] = s.metadata.General.original_filename
     results['diameters'] = np.array([])
@@ -97,6 +184,24 @@ def get_props(s, cutoff=None, thresh=None, border=5):
 
 
 def bootstrap_analysis(results, props):
+    """
+    Perform a bootstrap statistical analysis of particle size measurements.
+
+    Args
+    ----------
+    results : dict
+        Result of particle size analysis performed using the `get_props`
+        function.
+    props : str or list of str
+        Properties on which to perform the bootstrap analysis.  Must be
+        'diameters', 'max_ferets', and/or 'min_ferets'.
+
+    Returns
+    ----------
+    outptu : dict
+        Dictionary containing the results of the bootstrap analysis.
+
+    """
     def test_statistic(x):
         return np.mean(x), np.median(x)
 
@@ -125,6 +230,24 @@ def bootstrap_analysis(results, props):
 
 
 def get_geometric_stats(data, verbose=False):
+    """
+    Determine the geometric mean and geometric standard deviation.
+
+    Args
+    ----------
+    data : Numpy Array
+        Particle size measurments determined by the `get_props` function
+    verbose: bool
+        If True, output results to the terminal.  Default is False
+
+    Returns
+    ----------
+    data_gmean : float
+        Geometric mean of the input data.
+    data_gstd : float
+        Geometric standard deviation of the input data.
+
+    """
     data_gmean = gmean(data)
     data_gstd = np.exp(np.sqrt((np.log(data / data_gmean)**2).sum()
                                / len(data)))
@@ -135,6 +258,24 @@ def get_geometric_stats(data, verbose=False):
 
 
 def csd(data, plot=False, outfile=None):
+    """
+    Determine the cumulative size distribution.
+
+    Args
+    ----------
+    data : Numpy Array
+        Particle size measurments determined by the `get_props` function
+    plot : bool
+        If True, plot the result.  Default is False
+    outfile : str
+        If provided, save the result to a text file
+
+    Returns
+    ----------
+    csd : Numpy array
+        Cumulative size distribution of the input data.
+
+    """
     max_val = np.int32(np.ceil(data.max()))
     csd = np.zeros([max_val, 2])
     csd[:, 0] = np.arange(0, max_val)

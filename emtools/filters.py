@@ -1,26 +1,30 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Jan  8 11:00:53 2018
+#
+# This file is part of EMTools
 
-@author: aherzing
 """
+Filters module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 import matplotlib.pylab as plt
 import numpy as np
 from scipy.signal import correlate
 import tqdm
 
 
-def butter_bpf(data, Dl, Dh, n=1):
+def butter_bpf(data, d_low, d_high, n=1):
     """
-    Function to apply a Butterworth bandpass filter to an image or stack.
+    Apply a Butterworth bandpass filter to an image or stack.
 
     Args
     ----------
     data : Numpy array
         2D image or 3D stack of images
-    Dl : integer
+    d_low : integer
         Low-frequency cutoff of the filter
-    Dh : integer
+    d_high : integer
         High-frequency cutoff
     n : integer
         Sampling rate (default = 1)
@@ -38,10 +42,10 @@ def butter_bpf(data, Dl, Dh, n=1):
                          np.floor(height / 2)))
 
     uv = u**2 + v**2
-    Duv = np.sqrt(uv)
+    d_uv = np.sqrt(uv)
 
-    butter_lp_kernel = 1 / (1 + (Duv / Dl**(2 * n)))
-    butter_hp_kernel = 1 / (1 + (0.414 * Dh / Duv**(2 * n)))
+    butter_lp_kernel = 1 / (1 + (d_uv / d_low**(2 * n)))
+    butter_hp_kernel = 1 / (1 + (0.414 * d_high / d_uv**(2 * n)))
     kernel = butter_lp_kernel * butter_hp_kernel
 
     out = np.zeros(data.shape, data.dtype)
@@ -54,12 +58,12 @@ def butter_bpf(data, Dl, Dh, n=1):
             fftshift = np.fft.fftshift(np.fft.fft2(data[i, :, :]))
             filtered = fftshift * kernel
             out[i, :, :] = np.float32(np.abs(np.fft.ifft2(filtered)))
-    return(out)
+    return out
 
 
-def crossCorr(im1, im2):
+def cross_corr(im1, im2):
     """
-    Function to cross correlate to input images and display the result
+    Cross correlate to input images and display the result
 
     Args
     ----------
@@ -67,15 +71,16 @@ def crossCorr(im1, im2):
         2-D array containing image number 1
     im2 : numpy array
         2-D array containing image number 2
+
     """
     corr = correlate(im1, im2, mode='same')
     plt.imshow(corr, cmap='viridis')
     return
 
 
-def bandFilter(data, in_radius=9, out_radius=60):
+def band_filter(data, in_radius=9, out_radius=60):
     """
-    Function to cross correlate to input images and display the result
+    Apply a band-pass filter to an image
 
     Args
     ----------
@@ -101,10 +106,8 @@ def bandFilter(data, in_radius=9, out_radius=60):
     mask = np.logical_xor(x**2 + y**2 <= out_radius**2,
                           x**2 + y**2 < in_radius**2)
 
-    imFreq = np.fft.fft2(im)
-    # _ = np.fft.fftshift(np.abs(imFreq))
-    imFilt = np.fft.fftshift(imFreq) * mask
-    imNew = np.real(np.fft.ifft2(np.fft.ifftshift(imFilt)))
+    im_freq = np.fft.fft2(im)
+    im_filt = np.fft.fftshift(im_freq) * mask
+    out.data = np.float32(np.real(np.fft.ifft2(np.fft.ifftshift(im_filt))))
 
-    out.data = np.float32(imNew)
-    return(out)
+    return out
