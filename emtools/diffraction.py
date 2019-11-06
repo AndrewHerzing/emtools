@@ -3,6 +3,38 @@ import numpy as np
 
 def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
              alpha=None, beta=None, gamma=None, decimals=4):
+    """
+    Calculate d-spacing for hkl plane in a unit cell.
+
+    Args
+    ----------
+    hkl : list
+        Miller indices of the lattice plane
+    unit_cell : str
+        Unit cell of crystal. Must be 'cubic', 'tetragonal', 'hexagonal',
+        'rhombohedral', 'trigonal', 'orthorhomic', 'monoclinic', or 'triclinic'
+    a : float
+        Lattice parameter a of crystal.
+    b : float
+        Lattice parameter b of crystal.
+    c : float
+        Lattice parameter c of crystal.
+    alpha : float
+        Lattice angle alpha of crystal.
+    beta : float
+        Lattice angle beta of crystal.
+    gamma : float
+        Lattice angle gamma of crystal.
+    decimals : int
+        Number of decimal points to include in calculated d-spacing. Default
+        is 4.
+
+    Returns
+    ----------
+    d : float
+        Calculated spacing for the lattice plane and unit cell provided
+
+    """
 
     if len(hkl) != 3:
         raise ValueError("'hkl' is not valid.")
@@ -119,5 +151,3 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
                          "'trigonal', 'orthorhomic', 'monoclinic',"
                          "or 'triclinic'" % unit_cell)
     return np.around(d, decimals)
-
-    return d
