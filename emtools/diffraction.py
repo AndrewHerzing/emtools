@@ -38,9 +38,9 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
 
     if len(hkl) != 3:
         raise ValueError("'hkl' is not valid.")
-    h = hkl[0]
-    k = hkl[1]
-    l = hkl[2]
+    H = hkl[0]
+    K = hkl[1]
+    L = hkl[2]
 
     if alpha:
         alpha = alpha * np.pi / 180
@@ -53,7 +53,7 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         if not a:
             raise ValueError("Must provide lattice constant 'a' for unit cell\
                 type '%s'." % unit_cell)
-        d = np.sqrt(a**2 / (h**2 + k**2 + l**2))
+        d = np.sqrt(a**2 / (H**2 + K**2 + L**2))
 
     elif unit_cell == 'tetragonal':
         if not a:
@@ -62,7 +62,7 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         if not c:
             raise ValueError("Must provide lattice constant 'c' for unit cell\
                 type '%s'." % unit_cell)
-        d = np.sqrt(1 / (((h**2 + k**2) / a**2) + (l**2 / c**2)))
+        d = np.sqrt(1 / (((H**2 + K**2) / a**2) + (L**2 / c**2)))
 
     elif unit_cell == 'hexagonal':
         if not a:
@@ -71,8 +71,8 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         if not c:
             raise ValueError("Must provide lattice constant 'c' for unit cell\
                 type '%s'." % unit_cell)
-        d = np.sqrt(1 / (4 / 3 * ((h**2 + h * k + k**2) / a**2) +
-                    (l**2 / c**2)))
+        d = np.sqrt(1 / (4 / 3 * ((H**2 + H * K + K**2) / a**2) +
+                    (L**2 / c**2)))
 
     elif unit_cell == 'rhombohedral' or unit_cell == 'trigonal':
         if not a:
@@ -81,8 +81,8 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         if not alpha:
             raise ValueError("Must provide lattice constant 'alpha' for unit\
                 cell type '%s'." % unit_cell)
-        d = np.sqrt((1 / (((h**2 + h * k + k**2) * (np.sin(alpha))**2
-                    + 2 * (h * k + k * l + l * h) * ((np.cos(alpha))**2 -
+        d = np.sqrt((1 / (((H**2 + H * K + K**2) * (np.sin(alpha))**2
+                    + 2 * (H * K + K * L + L * H) * ((np.cos(alpha))**2 -
                     np.cos(alpha))) / (a**2 * (1 + 2 * (np.cos(alpha))**3 -
                                                3 * (np.cos(alpha))**2)))))
 
@@ -96,7 +96,7 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         if not c:
             raise ValueError("Must provide lattice constant 'c' for unit cell\
                 type '%s'." % unit_cell)
-        d = np.sqrt(1 / ((h**2 / a**2) + (k**2 / b**2) + (l**2 / c**2)))
+        d = np.sqrt(1 / ((H**2 / a**2) + (K**2 / b**2) + (L**2 / c**2)))
 
     elif unit_cell == 'monoclinic':
         if not a:
@@ -111,9 +111,9 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         if not beta:
             raise ValueError("Must provide lattice constant 'beta' for unit\
                 cell type '%s'." % unit_cell)
-        d = np.sqrt(1 / ((1 / (np.sin(beta))**2) * ((h**2 / a**2) +
-                    ((k**2 * (np.sin(beta))**2) / b**2) + (l**2 / c**2) -
-                    (2 * h * l * np.cos(beta) / (a * c)))))
+        d = np.sqrt(1 / ((1 / (np.sin(beta))**2) * ((H**2 / a**2) +
+                    ((K**2 * (np.sin(beta))**2) / b**2) + (L**2 / c**2) -
+                    (2 * H * L * np.cos(beta) / (a * c)))))
 
     elif unit_cell == 'triclinic':
         if not a:
@@ -143,8 +143,8 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
         V = a * b * c * np.sqrt(1 - (np.cos(alpha))**2 - (np.cos(beta))**2 -
                                 (np.cos(gamma))**2 + 2 *
                                 np.cos(alpha) * np.cos(beta) * np.cos(gamma))
-        d = np.sqrt(1 / ((1 / V**2) * (S11 * h**2 + S22 * k**2 + S33 * l**2 +
-                         2 * S12 * h * k + 2 * S23 * k * l + 2 * S13 * h * l)))
+        d = np.sqrt(1 / ((1 / V**2) * (S11 * H**2 + S22 * K**2 + S33 * L**2 +
+                         2 * S12 * H * K + 2 * S23 * K * L + 2 * S13 * H * L)))
     else:
         raise ValueError("%s is not a valid unit cell type. Must be 'cubic',"
                          "'tetragonal', 'hexagonal', 'rhombohedral',"
