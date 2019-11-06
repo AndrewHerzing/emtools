@@ -113,7 +113,11 @@ def calc_hkl(hkl, unit_cell='cubic', a=None, b=None, c=None,
                                 np.cos(alpha) * np.cos(beta) * np.cos(gamma))
         d = np.sqrt(1 / ((1 / V**2) * (S11 * h**2 + S22 * k**2 + S33 * l**2 +
                          2 * S12 * h * k + 2 * S23 * k * l + 2 * S13 * h * l)))
-
+    else:
+        raise ValueError("%s is not a valid unit cell type. Must be 'cubic',"
+                         "'tetragonal', 'hexagonal', 'rhombohedral',"
+                         "'trigonal', 'orthorhomic', 'monoclinic',"
+                         "or 'triclinic'" % unit_cell)
     return np.around(d, decimals)
 
     return d
