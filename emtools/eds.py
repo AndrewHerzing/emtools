@@ -211,7 +211,7 @@ def get_volumes(label_im, scale):
 
     """
     volumes = [None] * label_im.data.max()
-    regions = measure.regionprops(label_im.data)
+    regions = measure.regionprops(label_im.data, coordinates='xy')
     for i in range(0, len(regions)):
         h = 1e-9 * scale * regions[i]['minor_axis_length']
         r = 1e-9 * scale * regions[i]['major_axis_length']
@@ -239,7 +239,7 @@ def get_tau_d(label_im, scale, tau):
         Dwell time per unit area of the segmented regions.
 
     """
-    regions = measure.regionprops(label_im.data)
+    regions = measure.regionprops(label_im.data, coordinates='xy')
     tau_d = [None] * len(regions)
     for i in range(0, len(regions)):
         npix = regions[i]['area']
@@ -294,12 +294,14 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
 
     """Calculate the counts per electron dose for each volume"""
     counts_per_dose = counts / (Ne * i_probe * tau_d)
+    # counts_per_dose = np.append(0, counts_per_dose)
 
     """Calculate the amount of mass present in each volume"""
     rho_v = rho * volumes
+    # rho_v = np.append(0, rho_v)
 
     """Perform a linear fit to rho_v vs. counts_per_dose"""
-    m, b = np.polyfit(counts_per_dose, rho_v, 1)
-    fit = m * counts_per_dose + b
+    zeta, b = np.polyfit(counts_per_dose, rho_v, 1)
+    fit = zeta * counts_per_dose + b
 
-    return counts_per_dose, rho_v, fit
+    return counts_per_dose, rho_v, fit, zeta
