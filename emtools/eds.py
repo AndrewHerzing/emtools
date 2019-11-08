@@ -294,11 +294,9 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
 
     """Calculate the counts per electron dose for each volume"""
     counts_per_dose = counts / (Ne * i_probe * tau_d)
-    # counts_per_dose = np.append(0, counts_per_dose)
 
     """Calculate the amount of mass present in each volume"""
     rho_v = rho * volumes
-    # rho_v = np.append(0, rho_v)
 
     """Perform a linear fit to rho_v vs. counts_per_dose"""
     zeta, b = np.polyfit(counts_per_dose, rho_v, 1)
