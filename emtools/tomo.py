@@ -229,7 +229,7 @@ def output_stats(mindistance):
     return
 
 
-def distance_calc(surface, data, print_stats=False):
+def surface_distance_calc(surface, data, print_stats=False):
     """
     Calculate distance of all particles from the agglomerate surface.
 
@@ -296,7 +296,129 @@ def distance_calc(surface, data, print_stats=False):
     return data
 
 
-def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
+def plot_particle_to_particle_result(data_signal, idx=None, axis='XZ'):
+    """
+    Plot particle distance measurement results overlain with tomogram.
+
+    Args
+    ----------
+    data_signal : Hyperspy Signal2D
+        Tomographic reconstruction with particle distance results in metadata.
+    idx : int or None
+        Index of the particle to be displayed.
+    axis : str
+        Axis along which to integrate the tomogram for display.  If 'axis' is
+        one of the following: 'XZ', 'YZ', 'XY', 'YX', 'ZY', 'ZX', the
+        nearest slice along this axis in the tomogram to the point defined by
+        'idx' is displayed along with the identified surface pixels.  If 'axis'
+        is 'XZall', 'YZall', or 'XYall', the tomogram is integrated along the
+        axis and all points, minimum surface distances, and the projected edge
+        pixels are displayed.
+
+    Returns
+    ----------
+    fig : Matplotlib Figure
+
+    """
+    if len(data_signal.data.shape) == 3:
+        particle_loc = data_signal.original_metadata.points_cal[idx]
+        closest_particle_loc = \
+            data_signal.original_metadata.particle_locs_cal[idx]
+
+        if axis == 'XZ' or axis == 'ZX':
+            imageXZ = data_signal.inav[closest_particle_loc[0]]
+            imageXZ.plot(cmap='gray')
+            ax = plt.gca()
+            ax.plot([particle_loc[2], closest_particle_loc[2]],
+                    [particle_loc[1], closest_particle_loc[1]],
+                    '-wo')
+            ax.plot(closest_particle_loc[2], closest_particle_loc[1],
+                    'o', color='b', alpha=0.5)
+            ax.plot(particle_loc[2], particle_loc[1],
+                    'o', color='r', alpha=0.5)
+            plt.title('XZ Slice')
+
+        elif axis == 'XY' or axis == 'YX':
+            imageXY = data_signal.isig[:, closest_particle_loc[1]]
+            imageXY = imageXY.as_signal2D((1, 0))
+            imageXY.plot(cmap='gray')
+            ax = plt.gca()
+            ax.plot([particle_loc[2], closest_particle_loc[2]],
+                    [particle_loc[0], closest_particle_loc[0]],
+                    '-wo')
+            ax.plot(closest_particle_loc[2], closest_particle_loc[0],
+                    'o', color='b', alpha=0.5)
+            ax.plot(particle_loc[2], particle_loc[0],
+                    'o', color='r', alpha=0.5)
+            plt.title('XY Slice')
+
+        elif axis == 'YZ' or axis == 'ZY':
+            imageYZ = data_signal.isig[closest_particle_loc[2], :]
+            imageYZ = imageYZ.as_signal2D((1, 0))
+            imageYZ.plot(cmap='gray')
+            ax = plt.gca()
+            ax.plot([particle_loc[1], closest_particle_loc[1]],
+                    [particle_loc[0], closest_particle_loc[0]],
+                    '-wo')
+            ax.plot(closest_particle_loc[1], closest_particle_loc[0],
+                    'o', color='b', alpha=0.5)
+            ax.plot(particle_loc[1], particle_loc[0],
+                    'o', color='r', alpha=0.5)
+            plt.title('YZ Slice')
+
+        elif axis == 'XYall' or 'XZall' or 'YZall':
+            particle_loc = data_signal.original_metadata.points_cal
+            closest_particle_locs = \
+                data_signal.original_metadata.particle_locs_cal
+            if axis == 'XZall':
+                maximageXZ = data_signal.max()
+                maximageXZ.plot(cmap='afmhot')
+                ax = plt.gca()
+
+                ax.plot([particle_loc[:, 2], closest_particle_locs[:, 2]],
+                        [particle_loc[:, 1], closest_particle_locs[:, 1]],
+                        '-o')
+                plt.title('XZ Projection')
+
+            elif axis == 'XYall':
+                maximageXY = data_signal.max(2).as_signal2D((1, 0))
+                maximageXY.plot(cmap='afmhot')
+                ax = plt.gca()
+
+                ax.plot([particle_loc[:, 2], closest_particle_locs[:, 2]],
+                        [particle_loc[:, 0], closest_particle_locs[:, 0]],
+                        '-o')
+                plt.title('XY Projection')
+
+            elif axis == 'YZall':
+                maximageXY = data_signal.max(1).as_signal2D((1, 0))
+                maximageXY.plot(cmap='afmhot')
+                ax = plt.gca()
+
+                ax.plot([particle_loc[:, 1], closest_particle_locs[:, 1]],
+                        [particle_loc[:, 0], closest_particle_locs[:, 0]],
+                        '-o')
+                plt.title('YZ Projection')
+        else:
+            raise ValueError('Unknown axis: %s' % axis)
+
+    elif len(data_signal.data.shape) == 2:
+        plot_signal = data_signal.deepcopy()
+        particle_loc = data_signal.original_metadata.points_cal
+        closest_particle_loc = data_signal.original_metadata.particle_locs_cal
+
+        plot_signal.plot(cmap='gray')
+        ax = plt.gca()
+
+        ax.plot([particle_loc[:, 1], closest_particle_loc[:, 1]],
+                [particle_loc[:, 0], closest_particle_loc[:, 0]],
+                '-o')
+    fig = plt.gcf()
+    return fig
+
+
+def plot_particle_to_surface_result(data_signal, edge_signal, idx=None,
+                                    axis='XZ'):
     """
     Plot particle distance measurement results overlain with tomogram.
 
@@ -340,6 +462,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
                     'o', color='b', alpha=0.5)
             ax.plot(particle_loc[2], particle_loc[1],
                     'o', color='r', alpha=0.5)
+            plt.title('XZ Slice')
 
         elif axis == 'XY' or axis == 'YX':
             imageXY = data_signal.isig[:, edge_loc[1]].as_signal2D((1, 0))
@@ -355,6 +478,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
                     'o', color='b')
             ax.plot(particle_loc[2], particle_loc[0],
                     'o', color='r')
+            plt.title('XY Slice')
 
         elif axis == 'YZ' or axis == 'ZY':
             imageYZ = data_signal.isig[edge_loc[2], :].as_signal2D((1, 0))
@@ -368,6 +492,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
             ax.plot(edge_loc[1], edge_loc[0], 'o', color='b', alpha=0.5)
             ax.plot(particle_loc[1], particle_loc[0],
                     'o', color='r', alpha=0.5)
+            plt.title('YZ Slice')
 
         elif axis == 'XYall' or 'XZall' or 'YZall':
             particle_loc = data_signal.original_metadata.points_cal
@@ -380,6 +505,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
                 ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
                         [particle_loc[:, 1], edge_loc[:, 1]],
                         '-o')
+                plt.title('XZ Projection')
 
             elif axis == 'XYall':
                 maximageXY = data_signal.max(2).as_signal2D((1, 0))
@@ -389,6 +515,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
                 ax.plot([particle_loc[:, 2], edge_loc[:, 2]],
                         [particle_loc[:, 0], edge_loc[:, 0]],
                         '-o')
+                plt.title('XY Projection')
 
             elif axis == 'YZall':
                 maximageXY = data_signal.max(1).as_signal2D((1, 0))
@@ -398,6 +525,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
                 ax.plot([particle_loc[:, 1], edge_loc[:, 1]],
                         [particle_loc[:, 0], edge_loc[:, 0]],
                         '-o')
+                plt.title('YZ Projection')
         else:
             raise ValueError('Unknown axis: %s' % axis)
 
@@ -417,7 +545,7 @@ def plot_result(data_signal, edge_signal, idx=None, axis='XZ'):
     return fig
 
 
-def get_particle_distances(stack, verbose=True, threshold=0.5):
+def get_particle_to_surface_distances(stack, verbose=True, threshold=0.5):
     """
     Perform the entire particle-surface distance workflow.
 
@@ -460,13 +588,127 @@ def get_particle_distances(stack, verbose=True, threshold=0.5):
         edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
         print('Done!')
         print('Calculating particle-surface distances...')
-        stack = distance_calc(edges, stack, print_stats=False)
+        stack = surface_distance_calc(edges, stack, print_stats=False)
         print('Done!')
         output_stats(stack.original_metadata.mindistance_cal)
     else:
         stack = threshold_particles(stack, threshold=threshold,
                                     return_labels=False)
         edges = get_surface(stack, blur_sigma=3, canny_sigma=0.1)
-        stack = distance_calc(edges, stack, print_stats=False)
+        stack = surface_distance_calc(edges, stack, print_stats=False)
 
     return stack, edges
+
+
+def get_particle_to_particle_distances(stack, verbose=True, threshold=0.5):
+    """
+    Perform the entire particle-particle distance workflow.
+
+    Args
+    ----------
+    stack : Hyperspy Signal2D or TomoStack
+        Tomographic reconstruction to be analyzed.
+    verbose : str
+        If True, progress updates at each point and the measurement results
+        to the terminal. Default is True.
+    threshold : float
+        Fraction of the maximum value of the template matching result. Regions
+        of the matching result above this value are identified as particles.
+
+    Returns
+    ----------
+    stack : Hyperspy Signal2D
+        Modified version of the input data with the calculated distances and
+        the location of the nearest surface location added to the metadata.
+        Absolute distances and calibrated distances are stored in
+        data.original_metadata.mindistance and
+        data.original_metadata.mindistance_cal, respectively. Absolute
+        coordinates of the surface locations and the calibrated coordinates are
+        stored in data.original_metadata.minloc and
+        data.original_metadata.minloc_cal, respectively.
+    edges : Hyperspy Signal2D
+        Signal with the same dimensions as 'stack' where data is boolean array
+        indicating the surface pixel locations.
+
+
+    """
+    for i in range(len(stack.data.shape)):
+        stack.axes_manager[i].offset = 0
+    if verbose:
+        print('Locating particle centroids...')
+        stack = threshold_particles(stack, threshold=threshold,
+                                    return_labels=False)
+        print('Done!')
+        print('Calculating particle-surface distances...')
+        stack = particle_distance_calc(stack, print_stats=False)
+        print('Done!')
+        output_stats(stack.original_metadata.particle_distances_cal)
+    else:
+        stack = threshold_particles(stack, threshold=threshold,
+                                    return_labels=False)
+        stack = particle_distance_calc(stack, print_stats=False)
+
+    return stack
+
+
+def particle_distance_calc(data, print_stats=False):
+    """
+    Calculate distance of all particles from the agglomerate surface.
+
+    Args
+    ----------
+    data : Hyperspy Signal2D
+        Volumetric data containing particle locations
+    print_stats : bool
+        If True, print statistical properties of the calculated distances.
+
+    Returns
+    ----------
+    data : Hyperspy Signal2D
+        Modified version of the input data with the calculated
+        particle-particledistances added to the metadata.
+        Absolute distances and calibrated distances are stored in
+        data.original_metadata.particle_distances and
+        data.original_metadata.particle_distances_cal, respectively.
+
+    """
+    points = data.original_metadata.points
+    scaleX = data.axes_manager[1].scale
+    scaleY = data.axes_manager[0].scale
+    offsetX = data.axes_manager[1].offset
+    offsetY = data.axes_manager[0].offset
+    mindistance = np.zeros(len(points))
+
+    if len(data.data.shape) == 3:
+        scaleZ = data.axes_manager[2].scale
+        offsetZ = data.axes_manager[2].offset
+        minloc = np.zeros([len(points), 3])
+        for i in range(0, len(points)):
+            distance = np.sqrt(((points - points[i])**2).sum(1))
+            distance_sorted = np.sort(distance)
+            mindistance[i] = distance_sorted[1:].min()
+            minindex = np.where(distance == mindistance[i])
+            minloc[i, :] = points[minindex, :]
+
+        minloc_cal = minloc * [scaleY, scaleX, scaleZ] + \
+            [offsetY, offsetZ, offsetX]
+        mindistance_cal = mindistance * scaleX
+
+    elif len(data.data.shape) == 2:
+        minloc = np.zeros([len(points), 2])
+        for i in range(0, len(points)):
+            distance = np.sqrt(((points - points[i])**2).sum(1))
+            distance_sorted = np.sort(distance)
+            mindistance[i] = distance_sorted[1:].min()
+            minindex = np.where(distance == mindistance[i])
+            minloc[i, :] = points[minindex, :]
+        minloc_cal = minloc * [scaleX, scaleY] + [offsetX, offsetY]
+        mindistance_cal = mindistance * scaleX
+    if print_stats:
+        output_stats(mindistance, scaleX)
+
+    data.original_metadata.particle_distances = mindistance
+    data.original_metadata.particle_distances_cal = mindistance_cal
+    data.original_metadata.particle_locs = minloc
+    data.original_metadata.particle_locs_cal = minloc_cal
+    return data
