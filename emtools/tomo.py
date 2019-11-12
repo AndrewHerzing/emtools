@@ -639,7 +639,7 @@ def get_particle_to_particle_distances(stack, verbose=True, threshold=0.5):
         stack = threshold_particles(stack, threshold=threshold,
                                     return_labels=False)
         print('Done!')
-        print('Calculating particle-surface distances...')
+        print('Calculating particle-particle distances...')
         stack = particle_distance_calc(stack, print_stats=False)
         print('Done!')
         output_stats(stack.original_metadata.particle_distances_cal)
