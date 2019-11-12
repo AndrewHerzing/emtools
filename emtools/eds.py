@@ -281,6 +281,7 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
 
     """
     Ne = 6.241e18               # Electrons per Coulomb
+    results = {}
 
     """Extract the intensity of the chosen line in each masked reagion from
     the original SI"""
@@ -293,13 +294,19 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
     tau_d = get_tau_d(label_im, si.axes_manager[0].scale, tau)
 
     """Calculate the counts per electron dose for each volume"""
-    counts_per_dose = counts / (Ne * i_probe * tau_d)
+    counts_per_electron = counts / (Ne * i_probe * tau_d)
 
     """Calculate the amount of mass present in each volume"""
     rho_v = rho * volumes
 
     """Perform a linear fit to rho_v vs. counts_per_dose"""
-    zeta, b = np.polyfit(counts_per_dose, rho_v, 1)
-    fit = zeta * counts_per_dose + b
+    zeta, b = np.polyfit(np.append(0, counts_per_electron),
+                         np.append(0, rho_v),
+                         1)
+    fit = zeta * counts_per_electron + b
 
-    return counts_per_dose, rho_v, fit, zeta
+    results['counts'] = counts
+    results['volumes'] = volumes
+    results['tau_d'] = tau_d
+    results['counts_per_electron'] = counts_per_electron
+    return counts_per_electron, rho_v, fit, zeta
