@@ -310,3 +310,30 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
     results['tau_d'] = tau_d
     results['counts_per_electron'] = counts_per_electron
     return counts_per_electron, rho_v, fit, zeta
+
+
+def calc_zeta_factor(s, element, line, thickness, ip=None, live_time=None,
+                     bw=None, line_width=[5.0, 2.0]):
+    Ne = 6.25e18
+    if element not in s.metadata.Sample.elements:
+        s.add_elements([element, ])
+    if not bw:
+        bw = s.estimate_background_windows(line_width=line_width)
+    counts = s.get_lines_intensity([line, ],
+                                   background_windows=bw)[0].data[0]
+
+    rho = 1000 * hs.material.elements[element].Physical_properties.density_gcm3
+    if not ip:
+        if 'Acquisition_instrument.TEM.beam_current' in s.metadata:
+            ip = 1e-9 * s.metadata.Acquisition_instrument.TEM.beam_current
+        else:
+            raise ValueError('Probe current not specified in metadata')
+    if not live_time:
+        if 'Acquisition_instrument.TEM.Detector.EDS.live_time' in s.metadata:
+            live_time = s.metadata.Acquisition_instrument.TEM.\
+                Detector.EDS.live_time
+        else:
+            raise ValueError('Live-time not specified in metadata')
+
+    zeta = (rho * thickness * Ne * ip * live_time) / counts
+    return zeta
