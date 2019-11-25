@@ -339,8 +339,8 @@ def calc_zeta_factor(s, element, line, thickness, ip=None, live_time=None,
     return zeta
 
 
-def niox(data, livetime=200, thickness=59, tilt=0, thickness_error=5e-7,
-         current=0.3e-9, display=True):
+def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
+         i_probe=None, display=True):
     """
     Calculate various detector characteristics from a nickel oxide spectrum.
 
@@ -367,6 +367,22 @@ def niox(data, livetime=200, thickness=59, tilt=0, thickness_error=5e-7,
         Dictionary containing all measured and calculated values.
 
     """
+    # Check for experimental parameters in metadata
+    if not live_time:
+        if spec.metadata.Acquisition_instrument.TEM.Detector.EDS.live_time > 0:
+            live_time = \
+                spec.metadata.Acquisition_instrument.TEM.Detector.EDS.live_time
+        else:
+            raise ValueError('Spectrum acquisition time is not defined')
+
+    if not thickness:
+        raise ValueError('Specimen thickness not provided')
+
+    if not i_probe:
+        if spec.metadata.Acquisition_instrument.TEM.beam_current > 0:
+            i_probe = spec.metadata.Acquisition_instrument.TEM.beam_current
+        else:
+            raise ValueError('Probe current is not defined')
 
     # Define parameters
     # rho : density of bulk NiOx (g/cm^3)
@@ -375,15 +391,17 @@ def niox(data, livetime=200, thickness=59, tilt=0, thickness_error=5e-7,
     # w : fluoresence yield (unitless)
     # N : calculated number of Ni atoms per unit area; corrected for tilt
 
-    rho = 5.4e22
+    rho = 6.67
+    gmole_niox = 58.7 + 16.0
+    N = 6.02e23 * rho / gmole_niox * thickness * 1e-7 * \
+        np.cos(tilt * np.pi / 180)
     sigmaNi = 255e-24
-    Ne = livetime * current / 1.602e-19
+    Ne = live_time * i_probe / 1.602e-19
     w = 0.414
-    N = rho * thickness * 1e-7 * np.cos(tilt * np.pi / 180)
 
     results = {}
 
-    spec = data.isig[2.:21.].deepcopy()
+    spec = spec.isig[2.:21.].deepcopy()
     spec.set_elements([])
     spec.set_lines([])
     spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo'])
@@ -495,7 +513,7 @@ def niox(data, livetime=200, thickness=59, tilt=0, thickness_error=5e-7,
                                  (sigmaNiKb / NiKb)**2 +
                                  (thickness_error / thickness)**2)
 
-    efficiency = (NiKa + NiKb) / (livetime * current * 1e9 * omega)
+    efficiency = (NiKa + NiKb) / (live_time * i_probe * 1e9 * omega)
     sigmaEfficiency = efficiency * np.sqrt((sigmaNiKa / NiKa)**2 +
                                            (sigmaNiKb / NiKb)**2 +
                                            (sigmaOmega / omega)**2)
@@ -514,8 +532,8 @@ def niox(data, livetime=200, thickness=59, tilt=0, thickness_error=5e-7,
         print('\tEnergy scale:\t%0.2f eV'
               % (1000 * spec.axes_manager[-1].scale))
         print('\n\tFilm thickness:\t\t%0.1f nm' % (thickness))
-        print('\tAcquisition time:\t%0.1f s' % (livetime))
-        print('\tProbe current:\t\t%0.2f nA' % (current * 1e9))
+        print('\tAcquisition time:\t%0.1f s' % (live_time))
+        print('\tProbe current:\t\t%0.2f nA' % (i_probe * 1e9))
 
         print('\n\tMeasured peak intensities')
         print('\tNet Ni-Ka peak height:\t\t%0.1f counts , sigma = %0.1f'
