@@ -5,6 +5,27 @@ import matplotlib.pylab as plt
 
 
 def fitsigmatotal(energy, sigma, line=None, plot_results=False):
+    """
+    Determine total cross-section via asymptotic fitting
+
+    Args
+    ----------
+    energy : Hyperspy Signal1D
+        Single EDS spectrum signal
+    sigma : Matplotlib axis
+        Axis in which to plot the data.  If None, a new Figure and Axis are
+        created
+    line : bool or list
+        If True, label the peaks defined in spec.metadata.Sample.xray_lines.
+        If list, the listed peaks are labeled.
+    plot_results : bool
+        Color for the spectral plots
+
+    Returns
+    ----------
+    fit_data[2] : Y-component of the fitting result
+
+    """
     def asymptotic(x, a, b, c):
         return a / (x - b) + c
 
@@ -50,43 +71,52 @@ def fitsigmatotal2(energy, sigma, line=None, plot_results=False):
     return out
 
 
-def sigmak(z=None, ek=None, delta1=None, e0=None, beta=None):
-    #       Python version of Matlab code from R. F. Egerton
-    #       http://www.tem-eels.ca/egerton-laser/programs/SIGMAKL-instructions.htm
-    #
-    #       SIGMAK3 :  CALCULATION OF K-SHELL IONIZATION CROSS SECTIONS
-    #       USING RELATIVISTIC KINEMATICS AND A HYDROGENIC MODEL WITH
-    #       INNER-SHELL SCREENING CONSTANT OF 0.5 (last update: 01 May 2010)
-    #
-    #       INPUT DATA:
-    #           z -  atomic number of the element of interest
-    #           ek -  K-shell ionization energy, in eV
-    #           einc -  energy increment of output data, in eV
-    #           e0 -  incident-electron energy, in keV
-    #           beta -  maximum scattering angle (in milliradians)
-    #                   contributing to the cross section
-    #
-    # Details in R.F.Egerton: EELS in the Electron Microscope, 3rd edition,
-    # Springer 2011
+def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
+    """
+    Calculate the K-shell ionization cross-section as a function of energy
 
-    print('\n---------------Sigmak3----------------\n')
-    if (z is None) or (ek is None) or (delta1 is None) \
-       or (e0 is None) or (beta is None):
-        print('Alternate Usage: Sigmak3( Z, EK, Delta, E0, Beta)\\n\\n')
+    Python implementation of Matlab code from R. F. Egerton at:
+    http://www.tem-eels.ca/egerton-laser/programs/SIGMAKL-instructions.htm
 
-        z = input('Atomic number Z : ')
-        ek = input('K-edge threshold energy EK(eV) : ')
-        delta1 = input('Integration window Delta (eV) : ')
-        e0 = input('Incident-electron energy E0(keV) : ')
-        beta = input('Collection semi-angle Beta(mrad) : ')
-    else:
+    Uses relativistic kinematics and a hydrogenic model with inner-shell
+    screening constant of 0.5. Details in R.F.Egerton: EELS in the Electron
+    Microscope, 3rd edition, Springer 2011.
+
+    Given the atomic number
+
+    Args
+    ----------
+    z : int
+        Atomic number of the element of interest
+    ek : float
+        K-shell ionization energy, in eV
+    delta1 : float
+        Energy increment of output data, in eV
+    e0 : float
+        Incident electron energy (keV)
+    beta : float
+        Maximum scattering angle contributing to the cross-section (mrads)
+    verbose : bool
+        If True, output results to the terminal
+
+    Returns
+    ----------
+    eout : NumPy array
+        Energy values for calculated cross-section (eV)
+    sigmaout : Numpy array
+        Calculated cross-section values (cm^2)
+
+    """
+
+    if verbose:
+        print('\n---------------Sigmak3----------------\n')
         print('Atomic number Z : %s\n' % z)
-        print('K-edge threshold energy EK(eV) : %s\n' % ek)
-        print('Integration window Delta (eV) : %s\n' % delta1)
+        print('K-edge threshold energy, ek (eV) : %s\n' % ek)
+        print('Integration window, delta (eV) : %s\n' % delta)
         print('Incident-electron energy E0(keV) : %s\n' % e0)
-        print('Collection semi-angle Beta(mrad) : %s\n' % beta)
+        print('Collection semi-angle beta(mrad) : %s\n' % beta)
 
-    einc = delta1
+    einc = delta
 
     r = 13.606
     e = ek
@@ -113,7 +143,7 @@ def sigmak(z=None, ek=None, delta1=None, e0=None, beta=None):
             quad(lambda x: gos_k(e, np.exp(x), z),
                  np.log(qa021), np.log(qa02m))[0]
         dfdipl = gos_k(e, qa021, z)  # dipole value
-        delta = e - ek
+        delta_current = e - ek
 
         if (j != 0):
             s = np.log(dsbdep / dsbyde) / np.log(e / (e - einc))
@@ -128,7 +158,7 @@ def sigmak(z=None, ek=None, delta1=None, e0=None, beta=None):
             print('Energy increment fell to zero')
             break
 
-        if (delta >= delta1):
+        if (delta_current >= delta):
             if (sginc < 0.0001 * sigma):
                 print('Change in sigma less than 0.0001')
                 break
@@ -143,13 +173,27 @@ def sigmak(z=None, ek=None, delta1=None, e0=None, beta=None):
         dfprev = dfdipl
         dsbdep = dsbyde
     print('%s iterations completed' % str(j))
-    return np.array(eout), np.array(sigmaout)
+    eout = np.array(eout)
+    sigmaout = np.array(sigmaout)
+    return eout, sigmaout
 
 
 def gos_k(E, qa02, z):
-    # gosfunc calculates (=DF/DE) which IS PER EV AND PER ATOM
-    # Note: quad function only works with qa02 due to IF statements in function
+    """
+    Calculate DF/DE (per eV and per atom) for K-shell
 
+    Note: quad function only works with qa02 due to IF statements in function
+
+    Args
+    ----------
+    E : int
+        Energy of incident electron (keV)
+    qa02 : float
+
+    z : int
+        Atomic number of scattering atom
+
+    """
     global r
     if (not np.isscalar(E) or not np.isscalar(z)):
         print('gosfunc: E and z input parameters must be scalar')
@@ -188,18 +232,43 @@ def gos_k(E, qa02, z):
 
 
 def sigmal(z=None, delta1=None, e0=None, beta=None):
-    # Python version of Matlab code from R. F. Egerton
-    # http://www.tem-eels.ca/egerton-laser/programs/SIGMAKL-instructions.htm
-    #
-    # SIGMAL3 : CALCULATION OF L-SHELL CROSS-SECTIONS USING A
-    # MODIFIED HYDROGENIC MODEL WITH RELATIVISTIC KINEMATICS.
-    # see Egerton, Proc. EMSA (1981) p.198 & 'EELS in the TEM'.
-    # THE GOS IS REDUCED BY A SCREENING FACTOR RF, BASED ON DATA
-    # FROM SEVERAL SOURCES SEE ULTRAMICROSCOPY 50 (1993) p.22.
-    #
-    # Details in R.F.Egerton: EELS in the Electron Microscope,
-    # 3rd edition, Springer 2011
+    """
+    Calculate the L-shell ionization cross-scetion
 
+    Python implementation of Matlab code from R. F. Egerton at:
+    http://www.tem-eels.ca/
+
+    Uses relativistic kinematics and a modified hydrogenic model with
+    inner-shell screening constant of 0.5.
+
+    See Egerton, Proc. EMSA (1981) p.198 & 'EELS in the TEM'.
+    The GOS is reduced by a screening factor RF, based on data from several
+    sources.  See Ultramicroscopye 50 (1993) p. 22.
+
+    Details in R.F.Egerton: EELS in the Electron Microscope, 3rd edition,
+    Springer 2011
+
+    Args
+    ----------
+    z : int
+        Atomic number of the element of interest
+    ek : float
+        K-shell ionization energy, in eV
+    delta1 : float
+        Energy increment of output data, in eV
+    e0 : float
+        Incident electron energy (keV)
+    beta : float
+        Maximum scattering angle contributing tot the cross-section (mrads)
+
+    Returns
+    ----------
+    eout : NumPy array
+        Energy values for calculated cross-section (eV)
+    sigmaout : Numpy array
+        Calculated cross-section values (cm^2)
+
+    """
     print('\n----------------Sigmal3---------------\n')
     global IE3
     global XU
@@ -286,8 +355,21 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
 
 
 def gos_l(E, qa02, z):
-    # gosfunc calculates (=DF/DE) which IS PER EV AND PER ATOM
-    # Note: quad function only works with qa02 due to IF statements in function
+    """
+    Calculate DF/DE (per eV and per atom) for L-shell
+
+    Note: quad function only works with qa02 due to IF statements in function
+
+    Args
+    ----------
+    E : int
+        Energy of incident electron (keV)
+    qa02 : float
+
+    z : int
+        Atomic number of scattering atom
+
+    """
 
     global IE3
     global XU
