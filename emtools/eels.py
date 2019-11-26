@@ -1,0 +1,322 @@
+import numpy as np
+from scipy.integrate import quad
+import scipy
+import matplotlib.pylab as plt
+
+
+def fitsigmatotal(energy, sigma, line=None, plot_results=False):
+    def asymptotic(x, a, b, c):
+        return a / (x - b) + c
+
+    eval_enegies = np.append(energy, np.arange(200000, 800000, 100000))
+    fit_data, covariance = scipy.optimize.curve_fit(
+        asymptotic, energy, sigma, (10., 1., 1.))
+    if plot_results:
+        output = fit_data[0] / (eval_enegies - fit_data[1]) + fit_data[2]
+
+        fig, ax = plt.subplots(1, figsize=(10, 6))
+        ax.scatter(energy, sigma)
+        ax.plot(eval_enegies, output, color='red')
+        ax.axhline(fit_data[2], linestyle='--', color='black')
+        _ = ax.set_ylim(0, 1.1 * fit_data[2])
+        _ = ax.set_xlim(0, 700000)
+        _ = ax.set_title('%s Total Cross Section' % line)
+        _ = ax.text(400000, 50, ('Fitted Total Sigma: %.2f' %
+                                 fit_data[2]), fontsize=12)
+    return(fit_data[2])
+
+
+def fitsigmatotal2(energy, sigma, line=None, plot_results=False):
+    def asymptotic(x, a, n, b, c):
+        return a*(1-n**(-b*x))+c
+
+    fit_data, covariance = scipy.optimize.curve_fit(
+        asymptotic, energy, sigma, (100., 1., 1., 1.))
+    output = fit_data[0]*(1-fit_data[1]**(-fit_data[2]*energy))+fit_data[3]
+
+    out = fit_data[0]*(1-fit_data[1]**(-fit_data[2]*100000))+fit_data[3]
+
+    fig, ax = plt.subplots(1)
+    ax.scatter(energy, sigma)
+    ax.plot(energy, output, color='red')
+    ax.axhline(out, linestyle='--', color='black')
+    _ = ax.set_ylim(0.9*energy.min(), 1.1*out)
+    _ = ax.set_xlim(0, 1.5*energy.max())
+    _ = ax.set_title('%s Total Cross Section' % line)
+    _ = ax.text(energy.max()/2.5, 2*energy.min(),
+                ('Fitted Total Sigma: %.2f' % out), fontsize=12)
+    return(out)
+
+
+def sigmak(z=None, ek=None, delta1=None, e0=None, beta=None):
+    #       Python version of Matlab code from R. F. Egerton
+    #       http://www.tem-eels.ca/egerton-laser/programs/SIGMAKL-instructions.htm
+    #
+    #       SIGMAK3 :  CALCULATION OF K-SHELL IONIZATION CROSS SECTIONS
+    #       USING RELATIVISTIC KINEMATICS AND A HYDROGENIC MODEL WITH
+    #       INNER-SHELL SCREENING CONSTANT OF 0.5 (last update: 01 May 2010)
+    #
+    #       INPUT DATA:
+    #           z -  atomic number of the element of interest
+    #           ek -  K-shell ionization energy, in eV
+    #           einc -  energy increment of output data, in eV
+    #           e0 -  incident-electron energy, in keV
+    #           beta -  maximum scattering angle (in milliradians)
+    #                   contributing to the cross section
+    #
+    # Details in R.F.Egerton: EELS in the Electron Microscope, 3rd edition, Springer 2011
+
+    print('\n---------------Sigmak3----------------\n')
+    if (z is None) or (ek is None) or (delta1 is None) or (e0 is None) or (beta is None):
+        print('Alternate Usage: Sigmak3( Z, EK, Delta, E0, Beta)\\n\\n')
+
+        z = input('Atomic number Z : ')
+        ek = input('K-edge threshold energy EK(eV) : ')
+        delta1 = input('Integration window Delta (eV) : ')
+        e0 = input('Incident-electron energy E0(keV) : ')
+        beta = input('Collection semi-angle Beta(mrad) : ')
+    else:
+        print('Atomic number Z : %s\n' % z)
+        print('K-edge threshold energy EK(eV) : %s\n' % ek)
+        print('Integration window Delta (eV) : %s\n' % delta1)
+        print('Incident-electron energy E0(keV) : %s\n' % e0)
+        print('Collection semi-angle Beta(mrad) : %s\n' % beta)
+
+    einc = delta1
+    #einc = delta1
+
+    r = 13.606
+    e = ek
+    b = beta / 1000
+    t = 511060 * (1 - 1 / (1 + e0 / (511.06)) ** 2) / 2
+    gg = 1 + e0 / 511.06
+    p02 = t / r / (1 - 2 * t / 511060)
+    f = 0
+    s = 0
+    sigma = 0
+    #     integrate over scattering angle FOR EACH ENERGY LOSS:
+    dsbdep = 0
+    dfprev = 0
+    eout = []
+    sigmaout = []
+    print('\nE(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)\n')
+    for j in range(0, 500):
+        qa021 = e ** 2 / (4 * r * t) + e ** 3 / (8 * r * t ** 2 * gg ** 3)
+        pp2 = p02 - e / r * (gg - e / 1022120)
+        qa02m = qa021 + 4 * np.sqrt(p02 * pp2) * (np.sin(b / 2)) ** 2
+
+        #   dsbyde IS THE ENERGY-DIFFERENTIAL X-SECN (barn/eV/atom)
+        dsbyde = 3.5166e8 * (r / t) * (r / e) * quad(lambda x: gos_k(e,
+                                                                     np.exp(x), z), np.log(qa021), np.log(qa02m))[0]
+        dfdipl = gosfunc(e, qa021, z)  # dipole value
+        delta = e - ek
+
+        if (j != 0):
+            s = np.log(dsbdep / dsbyde) / np.log(e / (e - einc))
+            sginc = (e * dsbyde - (e - einc) * dsbdep) / (1 - s)
+            sigma = sigma + sginc        # barn/atom
+            f = f + (dfdipl + dfprev) / 2 * einc
+
+        print('%4g %17.6f %10d %13.2f %8.4f\n' % (e, dsbyde, delta, sigma, f))
+        eout.append(e)
+        sigmaout.append(sigma)
+        if (einc == 0):
+            print('Energy increment fell to zero')
+            break
+
+        if (delta >= delta1):
+            if (sginc < 0.0001 * sigma):
+                print('Change in sigma less than 0.0001')
+                break
+
+            einc = einc * 2
+
+        e = e + einc
+        if (e > t):
+            print('Energy threshold exceeded')
+            break
+
+        dfprev = dfdipl
+        dsbdep = dsbyde
+    print('%s iterations completed' % str(j))
+    return np.array(eout), np.array(sigmaout)
+
+
+def gos_k(E, qa02, z):
+    # gosfunc calculates (=DF/DE) which IS PER EV AND PER ATOM
+    # Note: quad function only works with qa02 due to IF statements in function
+
+    global r
+    if (not np.isscalar(E) or not np.isscalar(z)):
+        print('gosfunc: E and z input parameters must be scalar')
+
+    r = 13.606
+    zs = 1.0
+    rnk = 1
+    if (z != 1):
+        zs = z - 0.50
+        rnk = 2
+
+    q = qa02 / zs ** 2
+    kh2 = E / r / zs ** 2 - 1
+    akh = np.sqrt(np.abs(kh2))
+    if (akh <= 0.1):
+        akh = 0.1
+
+    if (kh2 >= 0.0):
+        d = 1 - np.exp(-2*np.pi / akh)
+        bp = np.arctan(2 * akh / (q - kh2 + 1))
+        if (bp < 0):
+            bp = bp + np.pi
+
+        c = np.exp((-2/akh) * bp)
+    else:
+        #     SUM OVER EQUIVALENT BOUND STATES:
+        d = 1
+        y = (-1 / akh * np.log((q + 1 - kh2 + 2 * akh) / (q + 1 - kh2 - 2 * akh)))
+        c = np.exp(y)
+
+    a = ((q - kh2 + 1) ** 2 + 4. * kh2) ** 3
+    out = 128 * rnk * E / r / zs ** 4. * c / d * (q + kh2 / 3 + 1 / 3) / a / r
+
+    return(out)
+
+
+def sigmal(z=None, delta1=None, e0=None, beta=None):
+    #       Python version of Matlab code from R. F. Egerton
+    #       http://www.tem-eels.ca/egerton-laser/programs/SIGMAKL-instructions.htm
+    #
+    #       SIGMAL3 : CALCULATION OF L-SHELL CROSS-SECTIONS USING A
+    #       MODIFIED HYDROGENIC MODEL WITH RELATIVISTIC KINEMATICS.
+    #       see Egerton, Proc. EMSA (1981) p.198 & 'EELS in the TEM' 3rd Edition.
+    #       THE GOS IS REDUCED BY A SCREENING FACTOR RF, BASED ON DATA
+    #       FROM SEVERAL SOURCES SEE ULTRAMICROSCOPY 50 (1993) p.22.
+    #
+    #       Details in R.F.Egerton: EELS in the Electron Microscope, 3rd edition, Springer 2011
+
+    print('\n----------------Sigmal3---------------\n')
+    global IE3
+    global XU
+    global IE1
+    IE3 = [73, 99, 135, 164, 200, 245, 294, 347, 402, 455, 513, 575,
+           641, 710, 779, 855, 931, 1021, 1115, 1217, 1323, 1436, 1550, 1675]
+    XU = [.52, .42, .30, .29, .22, .30, .22, .16, .12, .13, .13, .14,
+          .16, .18, .19, .22, .14, .11, .12, .12, .12, .10, .10, .10]
+    IE1 = [118, 149, 189, 229, 270, 320, 377, 438, 500, 564, 628, 695,
+           769, 846, 926, 1008, 1096, 1194, 1142, 1248, 1359, 1476, 1596, 1727]
+
+    if (z is None) or (delta1 is None) or (e0 is None) or (beta is None):
+        print('Alternate Usage: Sigmak3( Z, EK, Delta, E0, Beta)\n')
+
+        z = input('Atomic number Z : ')
+        delta1 = input('Integration window Delta (eV) : ')
+        e0 = input('Incident-electron energy E0(keV) : ')
+        beta = input('Collection semi-angle Beta(mrad) : ')
+    else:
+        print('Atomic number Z : %s\n' % z)
+        print('Integration window Delta (eV) : %s\n' % delta1)
+        print('Incident-electron energy E0(keV) : %s\n' % e0)
+        print('Collection semi-angle Beta(mrad) : %s\n' % beta)
+
+    einc = delta1/10
+    r = 13.606
+    iz = np.int(np.fix(z)-13)
+    el3 = (IE3[iz])
+
+    e = el3
+    b = beta/1000
+    t = 511060*(1-1/(1+e0/(511.06))**2)/2
+    gg = 1+e0/511.06
+    p02 = t/r/(1-2*t/511060)
+    f = 0
+    s = 0
+    sigma = 0
+    print('\nE(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)\n')
+
+    eout = []
+    sigmaout = []
+    #     CALCULATE cross sections FOR EACH ENERGY LOSS:
+    for j in range(0, 40):
+        qa021 = e**2/(4*t*r) + e**3/(8*r*t**2*gg**3)
+        pp2 = p02-e/r*(gg-e/1022120)
+        qa02m = qa021 + 4*np.sqrt(p02*pp2)*(np.sin(b/2))**2
+
+        dsbyde = 3.5166e8 * (r / t) * (r / e) * quad(lambda x: gos_l(e,
+                                                                     np.exp(x), z), np.log(qa021), np.log(qa02m))[0]
+        dfdipl = gosfunc(e, qa021, z)  # dipole value
+
+        delta = e - el3
+        if(j != 0):
+            s = np.log(dsbdep/dsbyde)/np.log(e/(e-einc))
+            sginc = (e*dsbyde-(e-einc)*dsbdep)/(1-s)
+            sigma = sigma + sginc        # sigma is the EELS cross section cm**2 per atom
+            f = f + (dfdipl+dfprev)*einc/2
+            if(delta >= 10):
+                print('%4g %17.6f %10d %13.2f %8.4f\n' %
+                      (e, dsbyde, delta, sigma, f))
+                eout.append(e)
+                sigmaout.append(sigma)
+
+        if(delta >= delta1):
+            if(sginc < 0.001*sigma):
+                break
+            einc = einc*2
+
+        e = e + einc
+        if(e > t):
+            e = e - einc
+            break
+
+        dfprev = dfdipl
+        dsbdep = dsbyde
+
+    print('%4g %17.6f %10d %13.2f %8.4f\n' % (e, dsbyde, delta, sigma, f))
+    return(np.array(eout), np.array(sigmaout))
+
+
+def gos_l(E, qa02, z):
+    # gosfunc calculates (=DF/DE) which IS PER EV AND PER ATOM
+    # Note: quad function only works with qa02 due to IF statements in function
+
+    global IE3
+    global XU
+    global IE1
+
+    if(not np.isscalar(E) or not np.isscalar(z)):
+        error('gosfunc: E and z input parameters must be scalar')
+
+    r = 13.606
+    zs = z - 0.35*(8-1) - 1.7
+    iz = np.int(np.fix(z)-12)
+    u = XU[iz]
+    el3 = (IE3[iz])
+    el1 = (IE1[iz])
+
+    q = qa02 / (zs**2)
+    kh2 = (E / (r*zs**2)) - 0.25
+    akh = np.sqrt(abs(kh2))
+    if(kh2 >= 0):
+        d = 1 - np.exp(-2*np.pi/akh)
+        bp = np.arctan(akh/(q-kh2 + 0.25))
+        if(bp < 0):
+            bp = bp + np.pi
+        c = np.exp((-2/akh)*bp)
+    else:
+        d = 1
+        c = np.exp((-1/akh)*np.log((q+0.25-kh2+akh)/(q+0.25-kh2-akh)))
+
+    if(E-el1 <= 0):
+        g = 2.25*q**4-(0.75+3*kh2)*q**3+(0.59375-0.75*kh2-0.5*kh2**2)*q*q+(0.11146+0.85417*kh2+1.8833 *
+                                                                           kh2*kh2+kh2**3)*q + 0.0035807+kh2 / 21.333 + kh2*kh2 / 4.5714 + kh2 ** 3 / 2.4 + kh2**4/4
+        a = ((q-kh2 + 0.25)**2 + kh2)**5
+    else:
+        g = q**3-(5 / 3*kh2+11 / 12)*q ** 2+(kh2*kh2 / 3+1.5*kh2 +
+                                             65 / 48)*q+kh2**3/3+0.75*kh2*kh2+23/48*kh2+5/64
+        a = ((q-kh2 + 0.25)**2 + kh2)**4
+
+    rf = ((E+0.1-el3) / 1.8 / z / z)**u
+    if(np.abs(iz-11) <= 5 and E-el3 <= 20):
+        rf = 1
+
+    out = rf*32*g*c / a / d*E / r / r / zs**4
+    return(out)
