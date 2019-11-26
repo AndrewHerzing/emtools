@@ -10,16 +10,14 @@ def fitsigmatotal(energy, sigma, line=None, plot_results=False):
 
     Args
     ----------
-    energy : Hyperspy Signal1D
-        Single EDS spectrum signal
-    sigma : Matplotlib axis
-        Axis in which to plot the data.  If None, a new Figure and Axis are
-        created
-    line : bool or list
-        If True, label the peaks defined in spec.metadata.Sample.xray_lines.
-        If list, the listed peaks are labeled.
+    energy : NumPy array
+        Energy values to fit
+    sigma : NumPy array
+        Values of cross-section to fit
+    line : str
+        Name of Shell to use for Label
     plot_results : bool
-        Color for the spectral plots
+        If True, plot the results of the fit
 
     Returns
     ----------
@@ -29,22 +27,18 @@ def fitsigmatotal(energy, sigma, line=None, plot_results=False):
     def asymptotic(x, a, b, c):
         return a / (x - b) + c
 
-    eval_enegies = np.append(energy, np.arange(200000, 800000, 100000))
     fit_data, covariance = scipy.optimize.curve_fit(
         asymptotic, energy, sigma, (10., 1., 1.))
     if plot_results:
-        output = fit_data[0] / (eval_enegies - fit_data[1]) + fit_data[2]
-
         fig, ax = plt.subplots(1, figsize=(10, 6))
-        ax.scatter(energy, sigma)
-        ax.plot(eval_enegies, output, color='red')
+        ax.plot(energy, sigma, '-o', color='red')
         ax.axhline(fit_data[2], linestyle='--', color='black')
         _ = ax.set_ylim(0, 1.1 * fit_data[2])
-        _ = ax.set_xlim(0, 700000)
+        _ = ax.set_xlim(0, 1.1 * energy[-1])
         _ = ax.set_title('%s Total Cross Section' % line)
-        _ = ax.text(400000, 50, ('Fitted Total Sigma: %.2f' %
-                                 fit_data[2]), fontsize=12)
-    return fit_data[2]
+        _ = ax.text(0.6 * energy[-1], 0.1 * fit_data[2],
+                    ('Fitted Total Sigma: %.2f' % fit_data[2]), fontsize=12)
+    return fit_data
 
 
 def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
@@ -85,7 +79,7 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
     """
 
     if verbose:
-        print('\n---------------Sigma-K----------------\n')
+        print('---------------Sigma-K----------------\n')
         print('Atomic number Z : %s' % z)
         print('K-edge threshold energy, ek (eV) : %s' % ek)
         print('Integration window, delta (eV) : %s' % delta)
@@ -110,7 +104,7 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
     sigmaout = []
     if verbose:
         print('\nE(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)')
-    for j in range(0, 500):
+    for j in range(0, 50):
         qa021 = e ** 2 / (4 * r * t) + e ** 3 / (8 * r * t ** 2 * gg ** 3)
         pp2 = p02 - e / r * (gg - e / 1022120)
         qa02m = qa021 + 4 * np.sqrt(p02 * pp2) * (np.sin(b / 2)) ** 2
@@ -177,7 +171,7 @@ def gos_k(E, qa02, z):
         Atomic number of scattering atom
 
     """
-    global r
+    # global r
     if (not np.isscalar(E) or not np.isscalar(z)):
         print('gosfunc: E and z input parameters must be scalar')
 
@@ -202,7 +196,7 @@ def gos_k(E, qa02, z):
 
         c = np.exp((-2 / akh) * bp)
     else:
-        #     SUM OVER EQUIVALENT BOUND STATES:
+        # SUM OVER EQUIVALENT BOUND STATES:
         d = 1
         y = (-1 / akh * np.log((q + 1 - kh2 + 2 * akh) /
                                (q + 1 - kh2 - 2 * akh)))
@@ -298,7 +292,7 @@ def sigmal(z=None, delta=None, e0=None, beta=None, verbose=True):
             # sigma is the EELS cross section cm**2 per atom
             sigma = sigma + sginc
             f = f + (dfdipl + dfprev) * einc / 2
-            if(delta >= 10):
+            if(delta_current >= 10):
                 if verbose:
                     print('%4g %17.6f %10d %13.2f %8.4f' %
                           (e, dsbyde, delta_current, sigma, f))
@@ -372,9 +366,9 @@ def gos_l(E, qa02, z):
                    / (q + 0.25 - kh2 - akh)))
 
     if(E - el1 <= 0):
-        g = 2.25 * q**4 - (0.75 + 3 * kh2) * q**3 + \
-            (0.59375 - 0.75 * kh2 - 0.5 * kh2**2) * q * q + \
-            (0.11146 + 0.85417 * kh2 + 1.8833 * kh2 * kh2 + kh2**3) * q \
+        g = 2.25 * q**4 - (0.75 + 3 * kh2) * q**3 \
+            + (0.59375 - 0.75 * kh2 - 0.5 * kh2**2) * q * q \
+            + (0.11146 + 0.85417 * kh2 + 1.8833 * kh2 * kh2 + kh2**3) * q \
             + 0.0035807 + kh2 / 21.333 + kh2 * kh2 / 4.5714 \
             + kh2 ** 3 / 2.4 + kh2**4 / 4
 
