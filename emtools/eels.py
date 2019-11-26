@@ -47,30 +47,6 @@ def fitsigmatotal(energy, sigma, line=None, plot_results=False):
     return fit_data[2]
 
 
-def fitsigmatotal2(energy, sigma, line=None, plot_results=False):
-    def asymptotic(x, a, n, b, c):
-        return a * (1 - n**(-b * x)) + c
-
-    fit_data, covariance = scipy.optimize.curve_fit(
-        asymptotic, energy, sigma, (100., 1., 1., 1.))
-    output = fit_data[0] * \
-        (1 - fit_data[1]**(-fit_data[2] * energy)) + fit_data[3]
-
-    out = fit_data[0] * \
-        (1 - fit_data[1]**(-fit_data[2] * 100000)) + fit_data[3]
-
-    fig, ax = plt.subplots(1)
-    ax.scatter(energy, sigma)
-    ax.plot(energy, output, color='red')
-    ax.axhline(out, linestyle='--', color='black')
-    _ = ax.set_ylim(0.9 * energy.min(), 1.1 * out)
-    _ = ax.set_xlim(0, 1.5 * energy.max())
-    _ = ax.set_title('%s Total Cross Section' % line)
-    _ = ax.text(energy.max() / 2.5, 2 * energy.min(),
-                ('Fitted Total Sigma: %.2f' % out), fontsize=12)
-    return out
-
-
 def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
     """
     Calculate the K-shell ionization cross-section as a function of energy
@@ -104,19 +80,19 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
     eout : NumPy array
         Energy values for calculated cross-section (eV)
     sigmaout : Numpy array
-        Calculated cross-section values (cm^2)
+        Calculated cross-section values (cm^2 per atom)
 
     """
 
     if verbose:
-        print('\n---------------Sigmak3----------------\n')
-        print('Atomic number Z : %s\n' % z)
-        print('K-edge threshold energy, ek (eV) : %s\n' % ek)
-        print('Integration window, delta (eV) : %s\n' % delta)
-        print('Incident-electron energy E0(keV) : %s\n' % e0)
-        print('Collection semi-angle beta(mrad) : %s\n' % beta)
+        print('\n---------------Sigma-K----------------\n')
+        print('Atomic number Z : %s' % z)
+        print('K-edge threshold energy, ek (eV) : %s' % ek)
+        print('Integration window, delta (eV) : %s' % delta)
+        print('Incident-electron energy E0(keV) : %s' % e0)
+        print('Collection semi-angle beta(mrad) : %s' % beta)
 
-    einc = delta
+    einc = delta / 10
 
     r = 13.606
     e = ek
@@ -132,7 +108,8 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
     dfprev = 0
     eout = []
     sigmaout = []
-    print('\nE(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)\n')
+    if verbose:
+        print('\nE(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)')
     for j in range(0, 500):
         qa021 = e ** 2 / (4 * r * t) + e ** 3 / (8 * r * t ** 2 * gg ** 3)
         pp2 = p02 - e / r * (gg - e / 1022120)
@@ -151,28 +128,34 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
             sigma = sigma + sginc        # barn/atom
             f = f + (dfdipl + dfprev) / 2 * einc
 
-        print('%4g %17.6f %10d %13.2f %8.4f\n' % (e, dsbyde, delta, sigma, f))
+        if verbose:
+            print('%4g %17.6f %10d %13.2f %8.4f' %
+                  (e, dsbyde, delta_current, sigma, f))
         eout.append(e)
         sigmaout.append(sigma)
         if (einc == 0):
-            print('Energy increment fell to zero')
+            if verbose:
+                print('\nEnergy increment fell to zero')
             break
 
         if (delta_current >= delta):
             if (sginc < 0.0001 * sigma):
-                print('Change in sigma less than 0.0001')
+                if verbose:
+                    print('\nChange in sigma less than 0.0001')
                 break
 
             einc = einc * 2
 
         e = e + einc
         if (e > t):
-            print('Energy threshold exceeded')
+            if verbose:
+                print('\nEnergy threshold exceeded')
             break
 
         dfprev = dfdipl
         dsbdep = dsbyde
-    print('%s iterations completed' % str(j))
+    if verbose:
+        print('%s iterations completed' % str(j))
     eout = np.array(eout)
     sigmaout = np.array(sigmaout)
     return eout, sigmaout
@@ -231,19 +214,18 @@ def gos_k(E, qa02, z):
     return out
 
 
-def sigmal(z=None, delta1=None, e0=None, beta=None):
+def sigmal(z=None, delta=None, e0=None, beta=None, verbose=True):
     """
-    Calculate the L-shell ionization cross-scetion
+    Calculate the L-shell ionization cross-scetion as function of energy
 
     Python implementation of Matlab code from R. F. Egerton at:
     http://www.tem-eels.ca/
 
     Uses relativistic kinematics and a modified hydrogenic model with
-    inner-shell screening constant of 0.5.
-
-    See Egerton, Proc. EMSA (1981) p.198 & 'EELS in the TEM'.
-    The GOS is reduced by a screening factor RF, based on data from several
-    sources.  See Ultramicroscopye 50 (1993) p. 22.
+    inner-shell screening constant of 0.5. See Egerton, Proc. EMSA (1981)
+    p.198 & 'EELS in the TEM'. The GOS is reduced by a screening factor RF,
+    based on data from several sources.
+    See Ultramicroscopy 50 (1993) p. 22.
 
     Details in R.F.Egerton: EELS in the Electron Microscope, 3rd edition,
     Springer 2011
@@ -252,9 +234,7 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
     ----------
     z : int
         Atomic number of the element of interest
-    ek : float
-        K-shell ionization energy, in eV
-    delta1 : float
+    delta : float
         Energy increment of output data, in eV
     e0 : float
         Incident electron energy (keV)
@@ -266,34 +246,22 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
     eout : NumPy array
         Energy values for calculated cross-section (eV)
     sigmaout : Numpy array
-        Calculated cross-section values (cm^2)
+        Calculated cross-section values (cm^2 per atom)
 
     """
-    print('\n----------------Sigmal3---------------\n')
-    global IE3
-    global XU
-    global IE1
+
     IE3 = [73, 99, 135, 164, 200, 245, 294, 347, 402, 455, 513, 575,
            641, 710, 779, 855, 931, 1021, 1115, 1217, 1323, 1436, 1550, 1675]
-    XU = [.52, .42, .30, .29, .22, .30, .22, .16, .12, .13, .13, .14,
-          .16, .18, .19, .22, .14, .11, .12, .12, .12, .10, .10, .10]
-    IE1 = [118, 149, 189, 229, 270, 320, 377, 438, 500, 564, 628, 695,
-           769, 846, 926, 1008, 1096, 1194, 1142, 1248, 1359, 1476, 1596, 1727]
 
-    if (z is None) or (delta1 is None) or (e0 is None) or (beta is None):
-        print('Alternate Usage: Sigmak3( Z, EK, Delta, E0, Beta)\n')
-
-        z = input('Atomic number Z : ')
-        delta1 = input('Integration window Delta (eV) : ')
-        e0 = input('Incident-electron energy E0(keV) : ')
-        beta = input('Collection semi-angle Beta(mrad) : ')
-    else:
-        print('Atomic number Z : %s\n' % z)
-        print('Integration window Delta (eV) : %s\n' % delta1)
-        print('Incident-electron energy E0(keV) : %s\n' % e0)
+    if verbose:
+        print('\n----------------Sigma-L---------------\n')
+        print('Atomic number Z : %s' % z)
+        print('Integration window Delta (eV) : %s' % delta)
+        print('Incident-electron energy E0(keV) : %s' % e0)
         print('Collection semi-angle Beta(mrad) : %s\n' % beta)
+        print('E(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)')
 
-    einc = delta1 / 10
+    einc = delta / 10
     r = 13.606
     iz = np.int(np.fix(z) - 13)
     el3 = (IE3[iz])
@@ -308,7 +276,6 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
     sigma = 0
     dsbdep = 0
     dfprev = 0
-    print('\nE(eV)    ds/dE(barn/eV)  Delta(eV)   Sigma(barn)     f(0)\n')
 
     eout = []
     sigmaout = []
@@ -324,7 +291,7 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
 
         dfdipl = gos_l(e, qa021, z)  # dipole value
 
-        delta = e - el3
+        delta_current = e - el3
         if(j != 0):
             s = np.log(dsbdep / dsbyde) / np.log(e / (e - einc))
             sginc = (e * dsbyde - (e - einc) * dsbdep) / (1 - s)
@@ -332,12 +299,13 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
             sigma = sigma + sginc
             f = f + (dfdipl + dfprev) * einc / 2
             if(delta >= 10):
-                print('%4g %17.6f %10d %13.2f %8.4f\n' %
-                      (e, dsbyde, delta, sigma, f))
+                if verbose:
+                    print('%4g %17.6f %10d %13.2f %8.4f' %
+                          (e, dsbyde, delta_current, sigma, f))
                 eout.append(e)
                 sigmaout.append(sigma)
 
-        if(delta >= delta1):
+        if(delta_current >= delta):
             if(sginc < 0.001 * sigma):
                 break
             einc = einc * 2
@@ -350,8 +318,9 @@ def sigmal(z=None, delta1=None, e0=None, beta=None):
         dfprev = dfdipl
         dsbdep = dsbyde
 
-    print('%4g %17.6f %10d %13.2f %8.4f\n' % (e, dsbyde, delta, sigma, f))
-    return np.array(eout), np.array(sigmaout)
+    eout = np.array(eout)
+    sigmaout = np.array(sigmaout)
+    return eout, sigmaout
 
 
 def gos_l(E, qa02, z):
@@ -370,10 +339,12 @@ def gos_l(E, qa02, z):
         Atomic number of scattering atom
 
     """
-
-    global IE3
-    global XU
-    global IE1
+    IE3 = [73, 99, 135, 164, 200, 245, 294, 347, 402, 455, 513, 575,
+           641, 710, 779, 855, 931, 1021, 1115, 1217, 1323, 1436, 1550, 1675]
+    XU = [.52, .42, .30, .29, .22, .30, .22, .16, .12, .13, .13, .14,
+          .16, .18, .19, .22, .14, .11, .12, .12, .12, .10, .10, .10]
+    IE1 = [118, 149, 189, 229, 270, 320, 377, 438, 500, 564, 628, 695,
+           769, 846, 926, 1008, 1096, 1194, 1142, 1248, 1359, 1476, 1596, 1727]
 
     if(not np.isscalar(E) or not np.isscalar(z)):
         raise ValueError('gosfunc: E and z input parameters must be scalar')
