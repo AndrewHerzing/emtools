@@ -337,3 +337,264 @@ def calc_zeta_factor(s, element, line, thickness, ip=None, live_time=None,
 
     zeta = (rho * thickness * Ne * ip * live_time) / counts
     return zeta
+
+
+def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
+         i_probe=None, display=True):
+    """
+    Calculate various detector characteristics from a nickel oxide spectrum.
+
+    Args
+    ----------
+    data : Hyperspy Signal1D, EDSSemSpectrum, or EDSTEMSpectrum
+        XEDS spectrum collected from NiOx film.
+    live_time : float or int
+        Spectrum acquisition time in seconds. Default is 200 seconds.
+    thickness : float or int
+        Thickness of NiOx film in nanometers. Default is 59 nm.
+    tilt : float or int
+        Specimen tilt in degrees.  Default is 0 degrees.
+    thickness_error : float
+        Error in thickness measurement given by manufacturer (+/- centimeters)
+    current : float
+        Probe current in amps. Default is 0.3 nA.
+    display : bool
+        If True, print the results to the terminal.
+
+    Returns
+    ----------
+    results : Dict
+        Dictionary containing all measured and calculated values.
+
+    """
+    # Check for experimental parameters in metadata
+    if not live_time:
+        if spec.metadata.Acquisition_instrument.TEM.Detector.EDS.live_time > 0:
+            live_time = \
+                spec.metadata.Acquisition_instrument.TEM.Detector.EDS.live_time
+        else:
+            raise ValueError('Spectrum acquisition time is not defined')
+
+    if not thickness:
+        raise ValueError('Specimen thickness not provided')
+
+    if not i_probe:
+        if spec.metadata.Acquisition_instrument.TEM.beam_current > 0:
+            i_probe = spec.metadata.Acquisition_instrument.TEM.beam_current
+        else:
+            raise ValueError('Probe current is not defined')
+
+    # Define parameters
+    # rho : density of bulk NiOx (g/cm^3)
+    # sigmaNi : ionization cross section for NiK (cm^2; 1 barn = 1e-24 cm^2)
+    # Ne : electron dose (unitless, live time*current/electronic charge)
+    # w : fluoresence yield (unitless)
+    # N : calculated number of Ni atoms per unit area; corrected for tilt
+
+    rho = 6.67
+    gmole_niox = 58.7 + 16.0
+    N = 6.02e23 * rho / gmole_niox * thickness * 1e-7 * \
+        np.cos(tilt * np.pi / 180)
+    sigmaNi = 255e-24
+    Ne = live_time * i_probe / 1.602e-19
+    w = 0.414
+
+    results = {}
+
+    spec = spec.isig[2.:21.].deepcopy()
+    spec.set_elements([])
+    spec.set_lines([])
+    spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo'])
+
+    m = spec.create_model()
+
+    m.fit()
+    m.fit_background()
+    m.calibrate_energy_axis(calibrate='resolution', xray_lines=['Ni_Ka'])
+
+    m.calibrate_xray_lines('energy', ['Ni_Ka', 'Mo-Ka', 'Mo-La'], bound=10)
+    m.calibrate_xray_lines('width', ['Ni_Ka', 'Mo-Ka', 'Mo-La'], bound=10)
+
+    '''Net Counts'''
+    NiKa = m.components.Ni_Ka.A.value
+    NiKb = m.components.Ni_Kb.A.value
+    MoKa = m.components.Mo_Ka.A.value
+    MoLa = m.components.Mo_La.A.value
+    FeKa = m.components.Fe_Ka.A.value
+
+    sigmaNiKa = np.sqrt(NiKa)
+    sigmaNiKb = np.sqrt(NiKb)
+    sigmaFeKa = np.sqrt(FeKa)
+    sigmaMoKa = np.sqrt(MoKa)
+    sigmaMoLa = np.sqrt(MoLa)
+
+    results['Peaks'] = {}
+    results['Peaks']['NiKa'] = {}
+    results['Peaks']['NiKa']['Counts'] = NiKa
+    results['Peaks']['NiKa']['Sigma'] = sigmaNiKa
+
+    results['Peaks']['NiKb'] = {}
+    results['Peaks']['NiKb']['Counts'] = NiKb
+    results['Peaks']['NiKb']['Sigma'] = sigmaNiKb
+
+    results['Peaks']['FeKa'] = {}
+    results['Peaks']['FeKa']['Counts'] = FeKa
+    results['Peaks']['FeKa']['Sigma'] = sigmaFeKa
+
+    results['Peaks']['MoKa'] = {}
+    results['Peaks']['MoKa']['Counts'] = MoKa
+    results['Peaks']['MoKa']['Sigma'] = sigmaMoKa
+
+    results['Peaks']['MoLa'] = {}
+    results['Peaks']['MoLa']['Counts'] = MoLa
+    results['Peaks']['MoLa']['Sigma'] = sigmaMoLa
+
+    '''Energy Resolution'''
+    results['Resolution'] = {}
+    results['Resolution']['Height'] = NiKa
+    results['Resolution']['Center'] = m.components.Ni_Ka.centre.value
+    results['Resolution']['Sigma'] = m.components.Ni_Ka.sigma.value
+    results['Resolution']['FWHM'] = {}
+    results['Resolution']['FWHM']['NiKa'] = (1000.0 * m.components.Ni_Ka.fwhm)
+    results['Resolution']['FWHM']['MnKa'] = \
+        (0.926 * 1000.0 * m.components.Ni_Ka.fwhm)
+
+    '''Peak to Background'''
+
+    fwtm = 2 * np.sqrt(2 * np.log(10)) * m.components.Ni_Ka.sigma.value
+
+    bckg1 = spec.isig[6.1 - 2 * fwtm:6.1].sum(0).data[0]
+    bckg2 = spec.isig[8.7:8.7 + 2 * fwtm].sum(0).data[0]
+    bckgavg = (bckg1 + bckg2) / 2
+    bckgsingle = bckgavg / spec.isig[6.1 - 2 * fwtm:6.1].data.shape[0]
+
+    totalpb = NiKa / bckgavg
+    sigmaTotal = totalpb * np.sqrt((sigmaNiKa / NiKa)**2 +
+                                   (np.sqrt(bckgavg) / bckgavg)**2)
+
+    fiori = NiKa / bckgsingle
+    sigmaFiori = fiori * np.sqrt((sigmaNiKa / NiKa)**2 +
+                                 (np.sqrt(bckg1) / bckg1)**2 +
+                                 (np.sqrt(bckg2) / bckg2)**2)
+
+    results['FioriPB'] = {}
+    results['FioriPB']['Value'] = fiori
+    results['FioriPB']['Sigma'] = sigmaFiori
+    results['TotalPB'] = {}
+    results['TotalPB']['Value'] = totalpb
+    results['TotalPB']['Sigma'] = sigmaTotal
+
+    '''Hole Count'''
+    holecountMo = NiKa / MoKa
+    sigmaMo = holecountMo * np.sqrt((sigmaNiKa / NiKa)**2 +
+                                    (sigmaMoKa / MoKa)**2)
+
+    holecountFe = NiKa / FeKa
+    sigmaFe = holecountFe * np.sqrt((sigmaNiKa / m.components.Ni_Ka.A.value)**2
+                                    + (sigmaFeKa / FeKa)**2)
+
+    results['HoleCount'] = {}
+    results['HoleCount']['MoKa'] = {}
+    results['HoleCount']['MoKa']['Value'] = holecountMo
+    results['HoleCount']['MoKa']['Sigma'] = sigmaMo
+
+    '''Mo K to L Ratio'''
+    moklratio = MoKa / MoLa
+    sigmaMokl = moklratio * np.sqrt((sigmaMoKa / MoKa)**2 +
+                                    (sigmaMoLa / MoLa)**2)
+
+    results['MoKL_Ratio'] = {}
+    results['MoKL_Ratio']['Value'] = moklratio
+    results['MoKL_Ratio']['Sigma'] = sigmaMokl
+
+    '''Solid Angle and Efficiency'''
+    omega = 4 * np.pi * (NiKa + NiKb) / (N * sigmaNi * w * Ne)
+    sigmaOmega = omega * np.sqrt((sigmaNiKa / NiKa)**2 +
+                                 (sigmaNiKb / NiKb)**2 +
+                                 (thickness_error / thickness)**2)
+
+    efficiency = (NiKa + NiKb) / (live_time * i_probe * 1e9 * omega)
+    sigmaEfficiency = efficiency * np.sqrt((sigmaNiKa / NiKa)**2 +
+                                           (sigmaNiKb / NiKb)**2 +
+                                           (sigmaOmega / omega)**2)
+    results['Omega'] = {}
+    results['Omega']['Value'] = omega
+    results['Omega']['Sigma'] = sigmaOmega
+    results['Efficiency'] = {}
+    results['Efficiency']['Value'] = efficiency
+    results['Efficiency']['Sigma'] = sigmaEfficiency
+
+    '''Analysis Output'''
+
+    if display:
+        print('Results of NiOx Analysis')
+        print('\n\tFilename:\t%s' % spec.metadata.General.original_filename)
+        print('\tEnergy scale:\t%0.2f eV'
+              % (1000 * spec.axes_manager[-1].scale))
+        print('\n\tFilm thickness:\t\t%0.1f nm' % (thickness))
+        print('\tAcquisition time:\t%0.1f s' % (live_time))
+        print('\tProbe current:\t\t%0.2f nA' % (i_probe * 1e9))
+
+        print('\n\tMeasured peak intensities')
+        print('\tNet Ni-Ka peak height:\t\t%0.1f counts , sigma = %0.1f'
+              % (NiKa, sigmaNiKa))
+        print('\tNet Ni-Kb peak height:\t\t%0.1f counts , sigma = %0.1f'
+              % (NiKb, sigmaNiKb))
+        print('\tNet Fe-Ka peak height:\t\t%0.1f counts , sigma = %0.1f'
+              % (FeKa, sigmaFeKa))
+        print('\tNet Mo-Ka peak height:\t\t%0.1f counts , sigma = %0.1f'
+              % (MoKa, sigmaMoKa))
+        print('\tNet Mo-La peak height:\t\t%0.1f counts , sigma = %0.1f'
+              % (MoLa, sigmaMoLa))
+
+        print('\n******************** Energy Resolution ********************')
+        print('\n\tFit results')
+        print('\tNi-Ka peak height:\t%0.1f counts'
+              % m.components.Ni_Ka.A.value)
+        print('\tNi-Ka peak center:\t%0.3f keV'
+              % m.components.Ni_Ka.centre.value)
+        print('\tNi-Ka peak sigma:\t%0.1f eV'
+              % (1000.0 * m.components.Ni_Ka.sigma.value))
+        print('\n\tFWHM at Ni-Ka:\t\t%0.1f eV'
+              % (1000.0 * m.components.Ni_Ka.fwhm))
+        print('\n\tFWHM at Mn-Ka:\t\t%0.1f eV'
+              % (0.926 * 1000.0 * m.components.Ni_Ka.fwhm))
+        m.isig[7.2:7.76].plot()
+
+        print('\n******************** Peak to Background ********************')
+        print('\n\tBackground (average):\t\t%0.1f counts' % bckgavg)
+        print('\tBackground (single channel):\t%0.1f counts' % bckgsingle)
+
+        print('\n\tFiori P/B:\t%0.1f' % fiori)
+        print('\tError (95%%):\t%0.2f' % (2 * sigmaFiori))
+        print('\tError (99%%):\t%0.2f' % (3 * sigmaFiori))
+
+        print('\n\tTotal P/B:\t%0.1f' % totalpb)
+        print('\tError (95%%):\t%0.2f' % (2 * sigmaTotal))
+        print('\tError (99%%):\t%0.2f' % (3 * sigmaTotal))
+
+        print('\n******************** Inverse hole-count ********************')
+        print('\n\tInverse hole-count (Mo-Ka):\t%0.2f' % holecountMo)
+        print('\tError (95%%):\t\t\t%0.2f' % (2 * sigmaMo))
+        print('\tError (99%%):\t\t\t%0.2f' % (3 * sigmaMo))
+
+        print('\n\tInverse hole-count (Fe-Ka):\t%0.2f' % holecountFe)
+        print('\tError (95%%):\t\t\t%0.2f' % (2 * sigmaFe))
+        print('\tError (99%%):\t\t\t%0.2f' % (3 * sigmaFe))
+
+        print('\n******************** Mo K/L Ratio ********************')
+        print('\n\tMo K/L ratio:\t%0.2f' % moklratio)
+        print('\tError (95%%):\t%0.2f' % (2 * sigmaMokl))
+        print('\tError (99%%):\t%0.2f' % (3 * sigmaMokl))
+
+        print('\n******************** Solid-angle ********************')
+        print('\tMeasured peak intensities')
+        print('\n\tCollection angle:\t%0.4f sr' % omega)
+        print('\tError (95%%):\t\t%0.4f sr' % (2 * sigmaOmega))
+        print('\tError (99%%):\t\t%0.4f sr' % (3 * sigmaOmega))
+
+        print('\n\tDetector efficiency:\t%0.3f cps/nA/sr' % efficiency)
+        print('\tError (95%%):\t\t%0.3f cps/nA/sr' % (2 * sigmaEfficiency))
+        print('\tError (99%%):\t\t%0.3f cps/nA/sr' % (3 * sigmaEfficiency))
+        print('*****************************************************')
+    return results
