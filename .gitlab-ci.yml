@@ -3,4 +3,4 @@ flake8_checks:
     script:
     - apt-get update -q
     - apt-get install -qy python3-flake8
-    - python3 -m flake8 emtools/
+    - python3 -m flake8 --ignore=F841,W503,W504 emtools/
