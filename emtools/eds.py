@@ -13,6 +13,7 @@ from matplotlib import pylab as plt
 import hyperspy.api as hs
 from skimage import measure, filters
 import numpy as np
+import warnings
 
 
 def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
@@ -597,4 +598,100 @@ def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
         print('\tError (95%%):\t\t%0.3f cps/nA/sr' % (2 * sigmaEfficiency))
         print('\tError (99%%):\t\t%0.3f cps/nA/sr' % (3 * sigmaEfficiency))
         print('*****************************************************')
+    return results
+
+
+def get_counts_2063a(spec, method='model', plot_results=False, verbose=False):
+    """
+    Extract peak intensities from spectrum collected from SRM-2063a
+
+    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.34},
+                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.98},
+                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.37},
+                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.88},
+                   'O': {'massfrac': 0.432, 'uncertainty': 1.60},
+                   'Ar': {'massfrac': 0.004, 'uncertainty': False}}
+
+    Args
+    ------
+    spec : Hyperspy EDSSEMSpectrum or EDSTEMSpectrum
+        Spectrum collected from SRM-2063a thin-film glass
+    method : str
+        If 'model', perform model-based peak intensity extraction. If
+        'windows', use the three-window method.
+    plot_results : bool
+        If True, plot the input spectrum along with the residuals.
+    verbose : bool
+        If True, print the results to the terminal
+    """
+    temp = spec.isig[0.15:10.0].deepcopy()
+
+    if method == 'model':
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+        warnings.simplefilter(action='ignore', category=UserWarning)
+
+        temp.set_elements([])
+        temp.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
+        m = temp.create_model()
+        # [m.remove(i) for i in ['Cu_La', 'Cu_Lb1', 'Cu_Ln', 'Cu_Ll', 'Cu_Lb3',
+        #                        'Ca_La', 'Ca_Ln', 'Ca_Ll']]
+        # m.print_current_values()
+        m.fit()
+        m.fit_background()
+
+        m.calibrate_energy_axis(calibrate='scale')
+        m.calibrate_energy_axis(calibrate='offset')
+
+        m.calibrate_xray_lines(calibrate='energy')
+        m.calibrate_xray_lines(calibrate='sub_weight')
+        m.calibrate_xray_lines(calibrate='width')
+
+        residuals = temp - m.as_signal()
+
+        if verbose:
+            print('Reduced Chi-sqaure: %.2f' % m.red_chisq.data)
+            print('Sum of residuals: %.2f\n'
+                  % np.sqrt(np.sum(residuals.data**2)))
+
+        if verbose:
+            results = m.get_lines_intensity(plot_result=True)
+        else:
+            results = m.get_lines_intensity(plot_result=False)
+
+        if plot_results:
+            hs.plot.plot_spectra([temp, residuals])
+
+    elif method == 'windows':
+        temp.set_elements([])
+        temp.set_lines([])
+
+        temp.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka', 'Fe_Ka', 'O_Ka', 'Ar_Ka'])
+        ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
+        ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
+        fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
+        mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
+        o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
+        si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
+        bw = np.array([ar_ka_bckg,
+                       ca_ka_bckg,
+                       fe_ka_bckg,
+                       mg_ka_bckg,
+                       o_ka_bckg,
+                       si_ka_bckg])
+        # [ar_ka,
+        #  c_ka,
+        #  ca_ka, ca_kb,
+        #  cu_ka, cu_kb, cu_la,
+        #  fe_ka, fe_kb, fe_la,
+        #  mg_ka,
+        #  o_ka,
+        #  s_ka,
+        #  si_ka] = temp.get_lines_intensity(background_windows=bw)
+        if verbose:
+            results = temp.get_lines_intensity(background_windows=bw,
+                                               plot_result=True)
+        else:
+            results = temp.get_lines_intensity(background_windows=bw,
+                                               plot_result=False)
+
     return results
