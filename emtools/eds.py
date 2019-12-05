@@ -674,9 +674,11 @@ def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
 
         output = {}
         for i in range(0, len(result)):
-            if i in ['Ar_Ka', 'Ca_Ka', 'Fe_Ka', 'Mg_Ka', 'O_Ka', 'Si_Ka']:
-                line = result[i].metadata.Sample.xray_lines[0]
-                output[line] = result[i].data[0]
+            line = result[i].metadata.Sample.xray_lines[0]
+            if line in ['Ar_Ka', 'Ca_Ka', 'Fe_Ka', 'Mg_Ka', 'O_Ka', 'Si_Ka']:
+                output[line] = {'counts': np.around(result[i].data[0], 2),
+                                'uncertainty': np.nan}
+
         if plot_results:
             residuals = temp - m.as_signal()
 
@@ -733,3 +735,15 @@ def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
                   'Si_Ka': {'counts': si_ka.data[0], 'uncertainty': np.nan}}
 
     return output
+
+
+def calc_zeta_factor_2063a(results, i_probe, live_time):
+    import pprint as pp
+    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.34},
+                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.98},
+                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.37},
+                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.88},
+                   'O': {'massfrac': 0.432, 'uncertainty': 1.60},
+                   'Ar': {'massfrac': 0.004, 'uncertainty': False}}
+    pp.pprint(composition)
+    return
