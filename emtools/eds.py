@@ -13,7 +13,7 @@ from matplotlib import pylab as plt
 import hyperspy.api as hs
 from skimage import measure, filters
 import numpy as np
-import warnings
+# import warnings
 
 
 def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
@@ -601,7 +601,8 @@ def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
     return results
 
 
-def get_counts_2063a(spec, method='model', plot_results=False, verbose=False):
+def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
+                     plot_results=False, verbose=False):
     """
     Extract peak intensities from spectrum collected from SRM-2063a
 
@@ -619,47 +620,75 @@ def get_counts_2063a(spec, method='model', plot_results=False, verbose=False):
     method : str
         If 'model', perform model-based peak intensity extraction. If
         'windows', use the three-window method.
+    energy_range : list
+        Low and high energy cutoff for fitting
+    elements : list
+        Elements to use for fitting.  If None, Mg, Si, Ca, Fe, O, and Ar will
+        be used.
     plot_results : bool
         If True, plot the input spectrum along with the residuals.
     verbose : bool
         If True, print the results to the terminal
     """
-    temp = spec.isig[0.15:10.0].deepcopy()
+    if not energy_range:
+        temp = spec.deepcopy()
+    else:
+        temp = spec.isig[energy_range[0]:energy_range[1]].deepcopy()
 
     if method == 'model':
-        warnings.simplefilter(action='ignore', category=FutureWarning)
-        warnings.simplefilter(action='ignore', category=UserWarning)
+        # warnings.simplefilter(action='ignore', category=FutureWarning)
+        # warnings.simplefilter(action='ignore', category=UserWarning)
 
         temp.set_elements([])
-        temp.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
+        if not elements:
+            temp.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
+        elif type(elements) is str:
+            temp.add_elements([elements, ])
+        elif type(elements) is list:
+            temp.add_elements(elements)
+        else:
+            raise ValueError('Unknown type (%s) for elements.'
+                             'Must be list or string.' %
+                             type(elements))
+
         m = temp.create_model()
-        # [m.remove(i) for i in ['Cu_La', 'Cu_Lb1', 'Cu_Ln', 'Cu_Ll', 'Cu_Lb3',
-        #                        'Ca_La', 'Ca_Ln', 'Ca_Ll']]
-        # m.print_current_values()
-        m.fit()
+        m.remove(['Mg_Kb', 'Fe_Lb3', 'Fe_Ln', 'Ca_Ll', 'Ca_Ln', 'Ar_Kb'])
+        m.free_xray_lines_width('all')
+        m.free_sub_xray_lines_weight(['O_Ka', 'Si_Ka', 'Fe_Ka'])
+        m.free_xray_lines_energy(['O_Ka', 'Fe_Ka', 'Si_Ka'])
+        m['Fe_Kb'].sigma.bmin = 0.02
+        m['Fe_Kb'].sigma.bmax = 1
+
+        m.fit(bounded=True)
         m.fit_background()
 
-        m.calibrate_energy_axis(calibrate='scale')
-        m.calibrate_energy_axis(calibrate='offset')
-
-        m.calibrate_xray_lines(calibrate='energy')
-        m.calibrate_xray_lines(calibrate='sub_weight')
-        m.calibrate_xray_lines(calibrate='width')
-
-        residuals = temp - m.as_signal()
+        m.calibrate_energy_axis(calibrate='resolution')
 
         if verbose:
-            print('Reduced Chi-sqaure: %.2f' % m.red_chisq.data)
-            print('Sum of residuals: %.2f\n'
-                  % np.sqrt(np.sum(residuals.data**2)))
-
-        if verbose:
-            results = m.get_lines_intensity(plot_result=True)
+            print('Results for Peak Fit')
+            print('**********************')
+            result = m.get_lines_intensity(plot_result=True)
+            print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
         else:
-            results = m.get_lines_intensity(plot_result=False)
+            result = m.get_lines_intensity(plot_result=False)
 
+        output = {}
+        for i in range(0, len(result)):
+            if i in ['Ar_Ka', 'Ca_Ka', 'Fe_Ka', 'Mg_Ka', 'O_Ka', 'Si_Ka']:
+                line = result[i].metadata.Sample.xray_lines[0]
+                output[line] = result[i].data[0]
         if plot_results:
-            hs.plot.plot_spectra([temp, residuals])
+            residuals = temp - m.as_signal()
+
+            m.plot(True)
+            ax = plt.gca()
+            ax.plot(residuals)
+            labels = ['Data', 'Model', 'Background']
+            for i in m[1:]:
+                labels.append(i.name)
+            labels.append('Residual')
+            ax.legend(labels)
+            ax.set_ylim([-300, 1.1 * temp.data.max()])\
 
     elif method == 'windows':
         temp.set_elements([])
@@ -678,20 +707,29 @@ def get_counts_2063a(spec, method='model', plot_results=False, verbose=False):
                        mg_ka_bckg,
                        o_ka_bckg,
                        si_ka_bckg])
-        # [ar_ka,
-        #  c_ka,
-        #  ca_ka, ca_kb,
-        #  cu_ka, cu_kb, cu_la,
-        #  fe_ka, fe_kb, fe_la,
-        #  mg_ka,
-        #  o_ka,
-        #  s_ka,
-        #  si_ka] = temp.get_lines_intensity(background_windows=bw)
+
         if verbose:
-            results = temp.get_lines_intensity(background_windows=bw,
+            [ar_ka,
+             ca_ka,
+             fe_ka,
+             mg_ka,
+             o_ka,
+             si_ka] = temp.get_lines_intensity(background_windows=bw,
                                                plot_result=True)
         else:
-            results = temp.get_lines_intensity(background_windows=bw,
+            [ar_ka,
+             ca_ka,
+             fe_ka,
+             mg_ka,
+             o_ka,
+             si_ka] = temp.get_lines_intensity(background_windows=bw,
                                                plot_result=False)
 
-    return results
+        output = {'Ar_Ka': {'counts': ar_ka.data[0], 'uncertainty': np.nan},
+                  'Ca_Ka': {'counts': ca_ka.data[0], 'uncertainty': np.nan},
+                  'Fe_Ka': {'counts': fe_ka.data[0], 'uncertainty': np.nan},
+                  'Mg_Ka': {'counts': mg_ka.data[0], 'uncertainty': np.nan},
+                  'O_Ka': {'counts': o_ka.data[0], 'uncertainty': np.nan},
+                  'Si_Ka': {'counts': si_ka.data[0], 'uncertainty': np.nan}}
+
+    return output
