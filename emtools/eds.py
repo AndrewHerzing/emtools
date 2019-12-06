@@ -737,14 +737,14 @@ def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
     return output
 
 
-def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0):
+def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0,
+                           plot_result=False, verbose=False):
     composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.0034},
                    'Si': {'massfrac': 0.2534, 'uncertainty': 0.0098},
                    'Ca': {'massfrac': 0.1182, 'uncertainty': 0.0037},
                    'Fe': {'massfrac': 0.1106, 'uncertainty': 0.0088},
                    'O': {'massfrac': 0.432, 'uncertainty': 0.0160},
                    'Ar': {'massfrac': 0.004, 'uncertainty': False}}
-    # pp.pprint(composition)
 
     rho = 3100
     rho_sigma = 300
@@ -797,16 +797,13 @@ def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0):
                            (thickness_sigma / thickness)**2 +
                            (rho_sigma / rho)**2) * zeta_o
 
-    zeta_ar = rho * thickness * composition['Ar']['massfrac'] * \
-        dose / results['Ar_Ka']['counts']
-    zeta_ar_sigma = np.nan
-
-    xray_energies = [hs.material.elements[i].Atomic_properties.
-                     Xray_lines['Ka']['energy_keV'] for i in
-                     ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']]
-    plt.figure()
-    plt.scatter(xray_energies, [zeta_mg, zeta_si, zeta_ca,
-                                zeta_fe, zeta_o, zeta_ar])
+    if plot_result:
+        xray_energies = [hs.material.elements[i].Atomic_properties.
+                         Xray_lines['Ka']['energy_keV'] for i in
+                         ['Mg', 'Si', 'Ca', 'Fe', 'O']]
+        plt.figure()
+        plt.scatter(xray_energies, [zeta_mg, zeta_si, zeta_ca,
+                                    zeta_fe, zeta_o])
 
     zeta_factors = {'Mg_Ka': {'zeta_factor': np.round(zeta_mg, 2),
                               'zeta_factor_sigma': np.round(zeta_mg_sigma, 2)},
@@ -817,8 +814,8 @@ def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0):
                     'Fe_Ka': {'zeta_factor': np.round(zeta_fe, 2),
                               'zeta_factor_sigma': np.round(zeta_fe_sigma, 2)},
                     'O_Ka': {'zeta_factor': np.round(zeta_o, 2),
-                             'zeta_factor_sigma': np.round(zeta_o_sigma, 2)},
-                    'Ar_Ka': {'zeta_factor': np.round(zeta_ar, 2),
-                              'zeta_factor_sigma': zeta_ar_sigma}}
-    pp.pprint(zeta_factors)
+                             'zeta_factor_sigma': np.round(zeta_o_sigma, 2)}
+                    }
+    if verbose:
+        pp.pprint(zeta_factors)
     return zeta_factors
