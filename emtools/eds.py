@@ -339,7 +339,7 @@ def calc_zeta_factor(s, element, line, thickness, ip=None, live_time=None,
     return zeta
 
 
-def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
+def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
          i_probe=None, display=True):
     """
     Calculate various detector characteristics from a nickel oxide spectrum.
@@ -394,8 +394,8 @@ def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
     rho = 6.67
     Ne = 6.242e18
     gmole_niox = 58.7 + 16.0
-    N = 6.02e23 * rho / gmole_niox * thickness * 1e-7 * \
-        np.cos(tilt * np.pi / 180)
+    N = 6.02e23 * rho / gmole_niox * thickness * 1e-7\
+        / np.cos(tilt * np.pi / 180)
     sigmaNi = 255e-24
     dose = Ne * live_time * i_probe
     wNi = 0.414
