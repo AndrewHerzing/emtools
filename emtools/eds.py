@@ -8,12 +8,11 @@ EDS module for EMTools package
 @author: Andrew Herzing
 """
 
-from hyperspy.misc import elements
 from matplotlib import pylab as plt
 import hyperspy.api as hs
 from skimage import measure, filters
 import numpy as np
-# import warnings
+import pprint as pp
 
 
 def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
@@ -81,7 +80,7 @@ def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
             horz_offset = 0.01 * horz_max
         for i in range(0, len(peaklabels)):
             element, line = peaklabels[i].split('_')
-            energy = (elements.elements[element]
+            energy = (hs.material.elements[element]
                       ['Atomic_properties']
                       ['Xray_lines']
                       [line]
@@ -281,7 +280,7 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
     fit : NumPy array
 
     """
-    Ne = 6.241e18               # Electrons per Coulomb
+    Ne = 6.242e18               # Electrons per Coulomb
     results = {}
 
     """Extract the intensity of the chosen line in each masked reagion from
@@ -315,7 +314,7 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
 
 def calc_zeta_factor(s, element, line, thickness, ip=None, live_time=None,
                      bw=None, line_width=[5.0, 2.0]):
-    Ne = 6.25e18
+    Ne = 6.242e18
     if element not in s.metadata.Sample.elements:
         s.add_elements([element, ])
     if not bw:
@@ -388,17 +387,18 @@ def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
     # Define parameters
     # rho : density of bulk NiOx (g/cm^3)
     # sigmaNi : ionization cross section for NiK (cm^2; 1 barn = 1e-24 cm^2)
-    # Ne : electron dose (unitless, live time*current/electronic charge)
+    # Ne : electrons per Coulomb
     # w : fluoresence yield (unitless)
     # N : calculated number of Ni atoms per unit area; corrected for tilt
 
     rho = 6.67
+    Ne = 6.242e18
     gmole_niox = 58.7 + 16.0
     N = 6.02e23 * rho / gmole_niox * thickness * 1e-7 * \
         np.cos(tilt * np.pi / 180)
     sigmaNi = 255e-24
-    Ne = live_time * i_probe / 1.602e-19
-    w = 0.414
+    dose = Ne * live_time * i_probe
+    wNi = 0.414
 
     results = {}
 
@@ -509,7 +509,7 @@ def niox(spec, thickness=None, live_time=None, tilt=0, thickness_error=None,
     results['MoKL_Ratio']['Sigma'] = sigmaMokl
 
     '''Solid Angle and Efficiency'''
-    omega = 4 * np.pi * (NiKa + NiKb) / (N * sigmaNi * w * Ne)
+    omega = 4 * np.pi * (NiKa + NiKb) / (N * sigmaNi * wNi * dose)
     sigmaOmega = omega * np.sqrt((sigmaNiKa / NiKa)**2 +
                                  (sigmaNiKb / NiKb)**2 +
                                  (thickness_error / thickness)**2)
@@ -737,13 +737,88 @@ def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
     return output
 
 
-def calc_zeta_factor_2063a(results, i_probe, live_time):
-    import pprint as pp
-    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.34},
-                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.98},
-                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.37},
-                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.88},
-                   'O': {'massfrac': 0.432, 'uncertainty': 1.60},
+def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0):
+    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.0034},
+                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.0098},
+                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.0037},
+                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.0088},
+                   'O': {'massfrac': 0.432, 'uncertainty': 0.0160},
                    'Ar': {'massfrac': 0.004, 'uncertainty': False}}
-    pp.pprint(composition)
-    return
+    # pp.pprint(composition)
+
+    rho = 3100
+    rho_sigma = 300
+    thickness = 76e-9 / np.cos(tilt * np.pi / 180)
+    thickness_sigma = 4e-9
+    dose = i_probe * live_time * 6.242e18
+
+    zeta_mg = rho * thickness * composition['Mg']['massfrac'] * \
+        dose / results['Mg_Ka']['counts']
+    zeta_mg_sigma = np.sqrt((composition['Mg']['uncertainty'] /
+                             composition['Mg']['massfrac'])**2 +
+                            (2 * np.sqrt(results['Mg_Ka']['counts']) /
+                             results['Mg_Ka']['counts'])**2 +
+                            (thickness_sigma / thickness)**2 +
+                            (rho_sigma / rho)**2) * zeta_mg
+
+    zeta_si = rho * thickness * composition['Si']['massfrac'] * \
+        dose / results['Si_Ka']['counts']
+    zeta_si_sigma = np.sqrt((composition['Si']['uncertainty'] /
+                             composition['Si']['massfrac'])**2 +
+                            (2 * np.sqrt(results['Si_Ka']['counts']) /
+                             results['Si_Ka']['counts'])**2 +
+                            (thickness_sigma / thickness)**2 +
+                            (rho_sigma / rho)**2) * zeta_si
+
+    zeta_ca = rho * thickness * composition['Ca']['massfrac'] * \
+        dose / results['Ca_Ka']['counts']
+    zeta_ca_sigma = np.sqrt((composition['Ca']['uncertainty'] /
+                             composition['Ca']['massfrac'])**2 +
+                            (2 * np.sqrt(results['Ca_Ka']['counts']) /
+                             results['Ca_Ka']['counts'])**2 +
+                            (thickness_sigma / thickness)**2 +
+                            (rho_sigma / rho)**2) * zeta_ca
+
+    zeta_fe = rho * thickness * composition['Fe']['massfrac'] * \
+        dose / results['Fe_Ka']['counts']
+    zeta_fe_sigma = np.sqrt((composition['Fe']['uncertainty'] /
+                             composition['Fe']['massfrac'])**2 +
+                            (2 * np.sqrt(results['Fe_Ka']['counts']) /
+                             results['Fe_Ka']['counts'])**2 +
+                            (thickness_sigma / thickness)**2 +
+                            (rho_sigma / rho)**2) * zeta_fe
+
+    zeta_o = rho * thickness * composition['O']['massfrac'] * \
+        dose / results['O_Ka']['counts']
+    zeta_o_sigma = np.sqrt((composition['O']['uncertainty'] /
+                            composition['O']['massfrac'])**2 +
+                           (2 * np.sqrt(results['O_Ka']['counts']) /
+                            results['O_Ka']['counts'])**2 +
+                           (thickness_sigma / thickness)**2 +
+                           (rho_sigma / rho)**2) * zeta_o
+
+    zeta_ar = rho * thickness * composition['Ar']['massfrac'] * \
+        dose / results['Ar_Ka']['counts']
+    zeta_ar_sigma = np.nan
+
+    xray_energies = [hs.material.elements[i].Atomic_properties.
+                     Xray_lines['Ka']['energy_keV'] for i in
+                     ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']]
+    plt.figure()
+    plt.scatter(xray_energies, [zeta_mg, zeta_si, zeta_ca,
+                                zeta_fe, zeta_o, zeta_ar])
+
+    zeta_factors = {'Mg_Ka': {'zeta_factor': np.round(zeta_mg, 2),
+                              'zeta_factor_sigma': np.round(zeta_mg_sigma, 2)},
+                    'Si_Ka': {'zeta_factor': np.round(zeta_si, 2),
+                              'zeta_factor_sigma': np.round(zeta_si_sigma, 2)},
+                    'Ca_Ka': {'zeta_factor': np.round(zeta_ca, 2),
+                              'zeta_factor_sigma': np.round(zeta_ca_sigma, 2)},
+                    'Fe_Ka': {'zeta_factor': np.round(zeta_fe, 2),
+                              'zeta_factor_sigma': np.round(zeta_fe_sigma, 2)},
+                    'O_Ka': {'zeta_factor': np.round(zeta_o, 2),
+                             'zeta_factor_sigma': np.round(zeta_o_sigma, 2)},
+                    'Ar_Ka': {'zeta_factor': np.round(zeta_ar, 2),
+                              'zeta_factor_sigma': zeta_ar_sigma}}
+    pp.pprint(zeta_factors)
+    return zeta_factors
