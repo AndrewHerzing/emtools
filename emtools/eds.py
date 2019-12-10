@@ -411,10 +411,10 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
 
     m.fit()
     m.fit_background()
-    m.calibrate_energy_axis(calibrate='resolution', xray_lines=['Ni_Ka'])
+    # m.calibrate_energy_axis(calibrate='resolution', xray_lines=['Ni_Ka'])
 
-    m.calibrate_xray_lines('energy', ['Ni_Ka', 'Mo-Ka', 'Mo-La'], bound=10)
-    m.calibrate_xray_lines('width', ['Ni_Ka', 'Mo-Ka', 'Mo-La'], bound=10)
+    # m.calibrate_xray_lines('energy', ['Ni_Ka', 'Mo-Ka', 'Mo-La'], bound=10)
+    # m.calibrate_xray_lines('width', ['Ni_Ka', 'Mo-Ka', 'Mo-La'], bound=10)
 
     '''Net Counts'''
     NiKa = m.components.Ni_Ka.A.value
@@ -560,7 +560,14 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
               % (1000.0 * m.components.Ni_Ka.fwhm))
         print('\n\tFWHM at Mn-Ka:\t\t%0.1f eV'
               % (0.926 * 1000.0 * m.components.Ni_Ka.fwhm))
-        m.isig[7.2:7.76].plot()
+        for i in m[1:]:
+            if i.name not in ['Ni_Ka', 'Ni_Kb']:
+                m.remove(i.name)
+
+        m.plot(True)
+        ax = plt.gca()
+        ax.set_xlim([6., 10.])
+        ax.legend(['Data', 'Model', 'Background', 'Ni_Ka', 'Ni_Kb'])
 
         print('\n******************** Peak to Background ********************')
         print('\n\tBackground (average):\t\t%0.1f counts' % bckgavg)
@@ -819,3 +826,96 @@ def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0,
     if verbose:
         pp.pprint(zeta_factors)
     return zeta_factors
+
+
+def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
+                          energy_resolution=135, energy_per_channel=0.01,
+                          background=False, noise=False, beam_energy=300):
+    if not ka_amplitude:
+        ka_amplitude = 1000 * np.ones(len(elements))
+
+    s = hs.signals.EDSTEMSpectrum(np.ones(nchannels))
+    s.axes_manager[0].scale = energy_per_channel
+    s.axes_manager[0].units = 'keV'
+    s.axes_manager[0].offset = 0
+    s.set_microscope_parameters(beam_energy=300)
+    #                             energy_resolution_MnKa=120)
+    s.metadata.General.original_filename = \
+        ('%s EDS Simluation.msa' % str(elements))
+    s.add_elements(elements)
+    x_axis = s.axes_manager[0].axis
+
+    count = 0
+    for k in elements:
+        lines = (hs.material.elements[k]
+                                     ['Atomic_properties']
+                                     ['Xray_lines'].keys())
+        for i in lines:
+            energy = (hs.material.elements[k]
+                                          ['Atomic_properties']
+                                          ['Xray_lines']
+                                          [i]
+                                          ['energy_keV'])
+            weight = (hs.material.elements[k]
+                                          ['Atomic_properties']
+                                          ['Xray_lines']
+                                          [i]
+                                          ['weight'])
+            A = weight * ka_amplitude[count]
+            sigma = 0.001 * energy_resolution / (2 * np.sqrt(2 * np.log(2)))
+
+            peak = (A / (sigma * np.sqrt(2 * np.pi))
+                    * np.exp(-(x_axis - energy)**2
+                    / (2 * sigma**2)))
+
+            s.data += peak
+        count += 1
+    return s
+
+
+def params_2063a(beam_energy):
+    """
+    Element     w           sigma (m^2)
+    ************************************
+    Mg K        0.0277      2.674828e-25
+    Si K	    0.0485      1.747376e-25
+    Ca K	    0.1603      6.569682e-26
+    Fe K	    0.3362      3.184271e-26
+    O K	        0.0057      7.539309e-25
+    Ar K	    0.1146      8.812094e-26
+    """
+    params = {'Mg': {'w': 0.0277,
+                     'sigma': {'300': 2.2701e-25,
+                               '200': 2.6748e-25,
+                               '150': 3.0829e-25,
+                               '80': 4.4413e-25}},
+              'Si': {'w': 0.0485,
+                     'sigma': {'300': 1.4884e-25,
+                               '200': 1.7474e-25,
+                               '150': 2.0077e-25,
+                               '80': 2.8650e-25}},
+              'Ca': {'w': 0.1603,
+                     'sigma': {'300': 5.6640e-26,
+                               '200': 6.5697e-26,
+                               '150': 7.4683e-26,
+                               '80': 1.0303e-25}},
+              'Fe': {'w': 0.3362,
+                     'sigma': {'300': 2.7843e-26,
+                               '200': 3.1843e-26,
+                               '150': 3.5742e-26,
+                               '80': 4.7151e-26}},
+              'O': {'w': 0.0057,
+                    'sigma': {'300': 6.3507e-25,
+                              '200': 7.5393e-25,
+                              '150': 8.7435e-25,
+                              '80': 1.2822e-24}},
+              'Ar': {'w': 0.1146,
+                     'sigma': {'300': 7.5658e-25,
+                               '200': 8.8121e-26,
+                               '150': 1.0055e-25,
+                               '80': 1.4040e-25}}}
+    output = {}
+    for i in ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']:
+        output[i] = {'w': params[i]['w'],
+                     'sigma': params[i]['sigma'][beam_energy]}
+    return output
