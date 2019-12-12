@@ -980,9 +980,54 @@ def calc_solid_angle(material, xray_line, counts, thickness,
 
 
 class Material:
+    """
+    Class to create materials with provided composition
 
+    Attributes
+    -----
+    name : str
+        Identity of the material.  Acceptable materials are 'NiOx' and '2063a'
+    beam_energy : float
+        Beam enegy in keV associated with analysis of the material
+    xray_lines : dict
+        X-ray lines to includ in analysis.  Includes the ionization cross-
+        section and fluorescence yield for each line.
+    elements : list
+        Elements to include in the analysis
+    density : float
+        Density in g/cm^3 of the material
+    density_sigma : float
+        Uncertainty in the material density in g/cm^3
+    composition_by_atom : dict
+        Composition of the material by atom. Contains atom fractions and
+        uncertainty for all elements.
+    composition_by_mass : dict
+        Composition of the material by mass. Contains mass fractions and
+        uncertainty for all elements.
+    molar_mass : float
+        Molar mass of the material in grams
+    total_atoms_per_gram : float
+        Number density of atoms per gram of the material
+
+    """
     def __init__(self, name, beam_energy=300, thickness=None,
                  thickness_sigma=None):
+        """
+        Constructor for Material class.
+
+        Args
+        -----
+        name : str
+            Identity of the material.  Acceptable materials are 'NiOx' and
+            '2063a'
+        beam_energy : float
+            Beam enegy in keV associated with analysis of the material. Default
+            is 300 keV
+        thickness : float
+            Thickness of the specimen in nanomaters
+        thickness_sigma : float
+            Uncertainty in specimen thickness in nanometers
+        """
         mats = ['NiOx', '2063a']
 
         if name in mats:
@@ -1053,6 +1098,12 @@ class Material:
             self.molar_mass = self.get_molar_mass()
 
     def get_xray_line_properties(self):
+        """
+        Retrieves fundamental parameters for each line from database files.
+
+        Includes ionization cross-sections and fluorescence yeild values for
+        each line
+        """
         if not self.xray_lines:
             raise ValueError('No X-ray lines defined!')
         datapath = imp.find_module("emtools")[1] + "/data/"
