@@ -850,6 +850,29 @@ def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0,
 def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
                           energy_resolution=135, energy_per_channel=0.01,
                           background=False, noise=False, beam_energy=300):
+    """
+    Simulate a simple XEDS spectrum containing K-lines
+
+    Args
+    ------
+    elements : list
+        Elements to include in the simulated spectrum
+    ka_amplitude : float or int
+        Amplitude of the Gaussian K-alpha peak to simulate
+    nchannels : int
+        Number of channels in the simulated spectrum
+    energy_resolution : float
+        Energy resolution of the simulated spectrum in eV
+    energy_per_channel : float
+        Energy per channel in the simulated spectrum in keV
+    background : bool
+        If True, include background in the simulated spectrum
+    noise : bool
+        If True, include Poissonian noise in the simulated spectrum
+    beam_energy : float
+        Beam energy in keV to use in the simulated spectrum.
+    """
+
     if not ka_amplitude:
         ka_amplitude = 1000 * np.ones(len(elements))
 
@@ -895,6 +918,32 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
 def calc_solid_angle(material, xray_line, counts, thickness,
                      beam_energy, probe_current, live_time, tilt=0,
                      verbose=False):
+    """
+    Calcualte the solid angle of a detectr from measured spectrum
+
+    Args
+    ------
+    material : str
+        Material from which the spectrum was collected.  Must be either 'NiOx'
+        or '2063a'
+    xray_line : str
+        X-ray line to use for the calculation
+    counts : int
+        Number of X-ray counts detected for the chosen line
+    thickness : float
+        Thickness of the specimen in nanometers analyzed
+    beam_energy : float
+        Energy of the electrons in keV used to collect the spectrum
+    probe_current : float
+        Probe current in nA used to generat the spectrum
+    live_time : float
+        Spectrum acquisition live time in seconds
+    tilt : float
+        Specimen tilt in degrees
+    vebose : bool
+        If True, print parameters and calculated results to the terminal
+    """
+
     element, line = xray_line.split('_')
     xray_energy = hs.material.elements[element]\
                              .Atomic_properties\
