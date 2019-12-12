@@ -747,6 +747,24 @@ def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
 
 def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0,
                            plot_result=False, verbose=False):
+    """
+    Calculate Zeta factor from a spectrum collected from 2063a SRM
+
+    Args
+    ------
+    results : Dict
+        Peak intensities extracted from 2063a spectrum
+    i_probe : float
+        Probe current in nA
+    live_time : float or int
+        Live time of spectrum collection
+    tilt : float or int
+        Specimen tilt in degrees
+    plot_result : bool
+        If True, plot calculated Zeta factors as a function of X-ray energy.
+    verbose : bool
+        If True, print the results to the terminal
+    """
     composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.0034},
                    'Si': {'massfrac': 0.2534, 'uncertainty': 0.0098},
                    'Ca': {'massfrac': 0.1182, 'uncertainty': 0.0037},
