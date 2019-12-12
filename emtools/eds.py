@@ -105,6 +105,39 @@ def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
         return
 
 
+def get_detector_efficiency(detector_name):
+    """
+    Reads detecor efficiency from database
+
+    Args
+    -----
+    detector_name : str
+        Name of the detector
+
+    Returns
+    -----
+    detector_efficiency : Hyperspy Signal1D
+        Detector efficiency curve as calculated by NIST DTSA-II
+    """
+    detectors = ['OctaneT', ]
+    if detector_name in detectors:
+        pass
+    else:
+        raise ValueError("Unknown detector %s. "
+                         "Must be one of the following: "
+                         "%s" % (detector_name, ', '.join(detectors)))
+
+    datapath = imp.find_module("emtools")[1] + "/data/"
+    detector_efficiency = np.loadtxt(datapath +
+                                     detector_name +
+                                     '_DetectorEfficiencyCurve.txt')
+    detector_efficiency = hs.signals.Signal1D(detector_efficiency)
+    detector_efficiency.axes_manager[0].name = 'Energy'
+    detector_efficiency.axes_manager[0].units = 'keV'
+    detector_efficiency.axes_manager[0].scale = 0.01
+    return detector_efficiency
+
+
 def get_label_images(si, indices=None, plot=False, titles=None):
     """
     Segment results of SI decomposition.
