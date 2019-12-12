@@ -13,6 +13,7 @@ import hyperspy.api as hs
 from skimage import measure, filters
 import numpy as np
 import pprint as pp
+import imp
 
 
 def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
@@ -873,49 +874,182 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
     return s
 
 
-def params_2063a(beam_energy):
-    """
-    Element     w           sigma (m^2)
-    ************************************
-    Mg K        0.0277      2.674828e-25
-    Si K	    0.0485      1.747376e-25
-    Ca K	    0.1603      6.569682e-26
-    Fe K	    0.3362      3.184271e-26
-    O K	        0.0057      7.539309e-25
-    Ar K	    0.1146      8.812094e-26
-    """
-    params = {'Mg': {'w': 0.0277,
-                     'sigma': {'300': 2.2701e-25,
-                               '200': 2.6748e-25,
-                               '150': 3.0829e-25,
-                               '80': 4.4413e-25}},
-              'Si': {'w': 0.0485,
-                     'sigma': {'300': 1.4884e-25,
-                               '200': 1.7474e-25,
-                               '150': 2.0077e-25,
-                               '80': 2.8650e-25}},
-              'Ca': {'w': 0.1603,
-                     'sigma': {'300': 5.6640e-26,
-                               '200': 6.5697e-26,
-                               '150': 7.4683e-26,
-                               '80': 1.0303e-25}},
-              'Fe': {'w': 0.3362,
-                     'sigma': {'300': 2.7843e-26,
-                               '200': 3.1843e-26,
-                               '150': 3.5742e-26,
-                               '80': 4.7151e-26}},
-              'O': {'w': 0.0057,
-                    'sigma': {'300': 6.3507e-25,
-                              '200': 7.5393e-25,
-                              '150': 8.7435e-25,
-                              '80': 1.2822e-24}},
-              'Ar': {'w': 0.1146,
-                     'sigma': {'300': 7.5658e-25,
-                               '200': 8.8121e-26,
-                               '150': 1.0055e-25,
-                               '80': 1.4040e-25}}}
-    output = {}
-    for i in ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']:
-        output[i] = {'w': params[i]['w'],
-                     'sigma': params[i]['sigma'][beam_energy]}
-    return output
+def calc_solid_angle(material, xray_line, counts, thickness,
+                     beam_energy, probe_current, live_time, tilt=0,
+                     verbose=False):
+    element, line = xray_line.split('_')
+    xray_energy = hs.material.elements[element]\
+                             .Atomic_properties\
+                             .Xray_lines[line]\
+                             .energy_keV
+    eff_thickness = thickness / np.cos(np.pi * tilt / 180)
+    mat = Material(material, beam_energy)
+    w = mat.xray_lines[xray_line]['w']
+    sigma = mat.xray_lines[xray_line]['sigma'] * 1e4
+    N_atoms = mat.get_atoms_per_volume(element) *\
+        (eff_thickness * 1e-7)
+    Ne = probe_current * 1e-9 * live_time / 1.6e-19
+    nu = counts / (N_atoms * sigma * w * Ne)
+    omega = 4 * np.pi * nu
+    omega = np.round(omega, 3)
+
+    if verbose:
+        print('Detector Solid-angle Calculation')
+        print('*************************************')
+        print('Beam energy (keV): %s' % str(beam_energy))
+        print('Probe current (nA): %s' % str(probe_current))
+        print('Live time (s): %s' % str(live_time))
+        print('Electron dose: %.2e' % Ne)
+        print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
+        print('X-ray line: %s @ %.2f keV' % (xray_line, xray_energy))
+        print('Counts detected: %s' % str(counts))
+        print('Ionization Cross-section (cm^2): %.2e' % sigma)
+        print('Fluorescence Yield: %.3f' % w)
+        print('Atoms per Unit Area (cm^-2): %.2e\n' % N_atoms)
+        print('Collection Efficiency: %.2f %%' % (100 * nu))
+        print('Collection Solid-angle (srs): %.3f' % omega)
+
+    return omega
+
+
+class Material:
+
+    def __init__(self, name, beam_energy=300, thickness=None,
+                 thickness_sigma=None):
+        mats = ['NiOx', '2063a']
+
+        if name in mats:
+            pass
+        else:
+            raise ValueError("Unknown material %s. "
+                             "Must be one of the following: "
+                             "%s" % (name, ', '.join(mats)))
+        self.name = name
+        self.beam_energy = beam_energy
+        self.xray_lines = None
+        self.elements = None
+        self.density = None
+        self.density_sigma = None
+        self.composition_by_atom = None
+        self.composition_by_mass = None
+        self.molar_mass = None
+        self.total_atoms_per_gram = None
+
+        if name == 'NiOx':
+            self.elements = ['Ni', 'O']
+            self.xray_lines = {'Ni_Ka': {'w': np.nan, 'sigma': np.nan},
+                               'O_Ka': {'w': np.nan, 'sigma': np.nan}}
+            self.get_xray_line_properties()
+            self.density = 6.67
+            self.density_sigma = np.nan
+            if not thickness:
+                self.thickness = 59
+            if not thickness_sigma:
+                self.thickness_sigma = 4
+            self.composition_by_atom = {'Ni': {'atom_fraction': 0.5,
+                                               'sigma': np.nan},
+                                        'O': {'atom_fraction': 0.5,
+                                              'sigma': np.nan}}
+            self.molar_mass = self.get_molar_mass()
+            self.composition_by_mass = self.at_to_wt()
+            self.total_atoms_per_gram = self.get_atoms_per_gram()
+
+        elif name == '2063a':
+            self.elements = ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']
+            self.xray_lines = {'Mg_Ka': {'w': np.nan, 'sigma': np.nan},
+                               'Si_Ka': {'w': np.nan, 'sigma': np.nan},
+                               'Ca_Ka': {'w': np.nan, 'sigma': np.nan},
+                               'Fe_Ka': {'w': np.nan, 'sigma': np.nan},
+                               'O_Ka': {'w': np.nan, 'sigma': np.nan},
+                               'Ar_Ka': {'w': np.nan, 'sigma': np.nan}}
+            self.get_xray_line_properties()
+            self.density = 3.1
+            self.density_sigma = 0.3
+            if not thickness:
+                self.thickness = 76
+            if not thickness_sigma:
+                self.thickness_sigma = 4
+            self.composition_by_mass = {'Mg': {'mass_fraction': 0.0797,
+                                               'sigma': 0.0034},
+                                        'Si': {'mass_fraction': 0.2534,
+                                               'sigma': 0.0098},
+                                        'Ca': {'mass_fraction': 0.1182,
+                                               'sigma': 0.0037},
+                                        'Fe': {'mass_fraction': 0.1106,
+                                               'sigma': 0.0088},
+                                        'O': {'mass_fraction': 0.432,
+                                              'sigma': 0.016},
+                                        'Ar': {'mass_fraction': 0.004,
+                                               'sigma': np.nan}}
+            self.total_atoms_per_gram = self.get_atoms_per_gram()
+            self.composition_by_atom = self.wt_to_at()
+            self.molar_mass = self.get_molar_mass()
+
+    def get_xray_line_properties(self):
+        if not self.xray_lines:
+            raise ValueError('No X-ray lines defined!')
+        datapath = imp.find_module("emtools")[1] + "/data/"
+        w = np.loadtxt(datapath + 'FluorescenceYield.txt')
+        sigma = np.loadtxt(datapath +
+                           "AbsoluteIonizationCrossSection" +
+                           "BoteSalvat2008_KShell_%skeV.txt" %
+                           str(self.beam_energy))
+        for i in self.xray_lines:
+            element = i.split('_')[0]
+            Z = hs.material.elements[element].General_properties.Z
+            idx = np.where(w[:, 0] == Z)[0][0]
+            self.xray_lines[i]['w'] = w[idx, 1]
+            self.xray_lines[i]['sigma'] = sigma[idx, 1]
+        return
+
+    def get_atoms_per_gram(self):
+        total_atoms_per_gram = 0
+        for i in self.composition_by_mass:
+            total_atoms_per_gram +=\
+                self.composition_by_mass[i]['mass_fraction']\
+                / hs.material.elements[i].General_properties\
+                                         .atomic_weight
+        total_atoms_per_gram *= 6.02e23
+        return total_atoms_per_gram
+
+    def get_molar_mass(self):
+        molar_mass = 0
+        for i in self.composition_by_atom:
+            molar_mass +=\
+                100 * self.composition_by_atom[i]['atom_fraction']\
+                * hs.material.elements[i].General_properties\
+                                         .atomic_weight
+        return molar_mass
+
+    def wt_to_at(self):
+        composition_by_atom = {}
+        for i in self.composition_by_mass:
+            atoms = (self.composition_by_mass[i]['mass_fraction']
+                     / hs.material.elements[i]
+                                  .General_properties
+                                  .atomic_weight
+                     * 6.02e23)
+            atom_fraction = atoms / self.total_atoms_per_gram
+            composition_by_atom[i] = {'atom_fraction': atom_fraction}
+        return composition_by_atom
+
+    def at_to_wt(self):
+        composition_by_mass = {}
+        for i in self.composition_by_atom:
+            mass = (100 * self.composition_by_atom[i]['atom_fraction']
+                    * hs.material.elements[i]
+                                 .General_properties
+                                 .atomic_weight)
+            mass_fraction = mass / self.molar_mass
+            composition_by_mass[i] = {'mass_fraction': mass_fraction}
+        return composition_by_mass
+
+    def get_atoms_per_volume(self, element):
+        mass_frac = self.composition_by_mass[element]['mass_fraction']
+        atomic_weight = hs.material.elements[element]\
+            .General_properties\
+            .atomic_weight
+        atoms_per_volume = (6.02e23
+                            * mass_frac / atomic_weight
+                            * self.density)
+        return atoms_per_volume
