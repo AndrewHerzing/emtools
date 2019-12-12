@@ -1102,7 +1102,21 @@ class Material:
         Retrieves fundamental parameters for each line from database files.
 
         Includes ionization cross-sections and fluorescence yeild values for
-        each line
+        each line extracted from DTSA-2, available at:
+
+        http://www.cstl.nist.gov/div837/837.02/epq/dtsa2/index.html
+
+        Ionization cross-sections are from:
+
+        D. Bote and F. Salvat, (2008) Calculations of inner-shell ionization
+        by electron impact with the distorted-wave and planewave Born
+        approximations. Phys Rev A 77, 042701.
+
+        Fluorescence yield values are from ENDLIB97.  See
+
+        D. E. Cullen, (1992) Program RELAX: A code designed to calculate X-ray
+        and electron emission spectra as singly charged atoms relax back to
+        neutrality. UCRL-ID-110438, Lawrence Livermore National Laboratory
         """
         if not self.xray_lines:
             raise ValueError('No X-ray lines defined!')
@@ -1121,6 +1135,10 @@ class Material:
         return
 
     def get_atoms_per_gram(self):
+        """
+        Calculates atomic number density per gram for the material.
+
+        """
         total_atoms_per_gram = 0
         for i in self.composition_by_mass:
             total_atoms_per_gram +=\
@@ -1131,6 +1149,10 @@ class Material:
         return total_atoms_per_gram
 
     def get_molar_mass(self):
+        """
+        Calculates the molar mass for the material.
+
+        """
         molar_mass = 0
         for i in self.composition_by_atom:
             molar_mass +=\
@@ -1140,6 +1162,10 @@ class Material:
         return molar_mass
 
     def wt_to_at(self):
+        """
+        Converts composition by mass to composition by atom.
+
+        """
         composition_by_atom = {}
         for i in self.composition_by_mass:
             atoms = (self.composition_by_mass[i]['mass_fraction']
@@ -1152,6 +1178,10 @@ class Material:
         return composition_by_atom
 
     def at_to_wt(self):
+        """
+        Converts composition by atom to composition by mass.
+
+        """
         composition_by_mass = {}
         for i in self.composition_by_atom:
             mass = (100 * self.composition_by_atom[i]['atom_fraction']
@@ -1163,6 +1193,10 @@ class Material:
         return composition_by_mass
 
     def get_atoms_per_volume(self, element):
+        """
+        Calculates the number of atoms per volume of an element in the material
+
+        """
         mass_frac = self.composition_by_mass[element]['mass_fraction']
         atomic_weight = hs.material.elements[element]\
             .General_properties\
