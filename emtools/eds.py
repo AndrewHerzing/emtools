@@ -642,142 +642,6 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     return results
 
 
-def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
-                     plot_results=False, verbose=False):
-    """
-    Extract peak intensities from spectrum collected from SRM-2063a
-
-    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.34},
-                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.98},
-                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.37},
-                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.88},
-                   'O': {'massfrac': 0.432, 'uncertainty': 1.60},
-                   'Ar': {'massfrac': 0.004, 'uncertainty': False}}
-
-    Args
-    ------
-    spec : Hyperspy EDSSEMSpectrum or EDSTEMSpectrum
-        Spectrum collected from SRM-2063a thin-film glass
-    method : str
-        If 'model', perform model-based peak intensity extraction. If
-        'windows', use the three-window method.
-    energy_range : list
-        Low and high energy cutoff for fitting
-    elements : list
-        Elements to use for fitting.  If None, Mg, Si, Ca, Fe, O, and Ar will
-        be used.
-    plot_results : bool
-        If True, plot the input spectrum along with the residuals.
-    verbose : bool
-        If True, print the results to the terminal
-    """
-    if not energy_range:
-        temp = spec.deepcopy()
-    else:
-        temp = spec.isig[energy_range[0]:energy_range[1]].deepcopy()
-
-    if method == 'model':
-        # warnings.simplefilter(action='ignore', category=FutureWarning)
-        # warnings.simplefilter(action='ignore', category=UserWarning)
-
-        temp.set_elements([])
-        if not elements:
-            temp.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
-        elif type(elements) is str:
-            temp.add_elements([elements, ])
-        elif type(elements) is list:
-            temp.add_elements(elements)
-        else:
-            raise ValueError('Unknown type (%s) for elements.'
-                             'Must be list or string.' %
-                             type(elements))
-
-        m = temp.create_model()
-        m.remove(['Mg_Kb', 'Fe_Lb3', 'Fe_Ln', 'Ca_Ll', 'Ca_Ln', 'Ar_Kb'])
-        m.free_xray_lines_width('all')
-        m.free_sub_xray_lines_weight(['O_Ka', 'Si_Ka', 'Fe_Ka'])
-        m.free_xray_lines_energy(['O_Ka', 'Fe_Ka', 'Si_Ka'])
-        m['Fe_Kb'].sigma.bmin = 0.02
-        m['Fe_Kb'].sigma.bmax = 1
-
-        m.fit(bounded=True)
-        m.fit_background()
-
-        m.calibrate_energy_axis(calibrate='resolution')
-
-        if verbose:
-            print('Results for Peak Fit')
-            print('**********************')
-            result = m.get_lines_intensity(plot_result=True)
-            print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
-        else:
-            result = m.get_lines_intensity(plot_result=False)
-
-        output = {}
-        for i in range(0, len(result)):
-            line = result[i].metadata.Sample.xray_lines[0]
-            if line in ['Ar_Ka', 'Ca_Ka', 'Fe_Ka', 'Mg_Ka', 'O_Ka', 'Si_Ka']:
-                output[line] = {'counts': np.around(result[i].data[0], 2),
-                                'uncertainty': np.nan}
-
-        if plot_results:
-            residuals = temp - m.as_signal()
-
-            m.plot(True)
-            ax = plt.gca()
-            ax.plot(residuals)
-            labels = ['Data', 'Model', 'Background']
-            for i in m[1:]:
-                labels.append(i.name)
-            labels.append('Residual')
-            ax.legend(labels)
-            ax.set_ylim([-300, 1.1 * temp.data.max()])\
-
-    elif method == 'windows':
-        temp.set_elements([])
-        temp.set_lines([])
-
-        temp.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka', 'Fe_Ka', 'O_Ka', 'Ar_Ka'])
-        ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
-        ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
-        fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
-        mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
-        o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
-        si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
-        bw = np.array([ar_ka_bckg,
-                       ca_ka_bckg,
-                       fe_ka_bckg,
-                       mg_ka_bckg,
-                       o_ka_bckg,
-                       si_ka_bckg])
-
-        if verbose:
-            [ar_ka,
-             ca_ka,
-             fe_ka,
-             mg_ka,
-             o_ka,
-             si_ka] = temp.get_lines_intensity(background_windows=bw,
-                                               plot_result=True)
-        else:
-            [ar_ka,
-             ca_ka,
-             fe_ka,
-             mg_ka,
-             o_ka,
-             si_ka] = temp.get_lines_intensity(background_windows=bw,
-                                               plot_result=False)
-
-        output = {'Ar_Ka': {'counts': ar_ka.data[0], 'uncertainty': np.nan},
-                  'Ca_Ka': {'counts': ca_ka.data[0], 'uncertainty': np.nan},
-                  'Fe_Ka': {'counts': fe_ka.data[0], 'uncertainty': np.nan},
-                  'Mg_Ka': {'counts': mg_ka.data[0], 'uncertainty': np.nan},
-                  'O_Ka': {'counts': o_ka.data[0], 'uncertainty': np.nan},
-                  'Si_Ka': {'counts': si_ka.data[0], 'uncertainty': np.nan}}
-
-    return output
-
-
 def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0,
                            plot_result=False, verbose=False):
     """
@@ -983,7 +847,7 @@ def calc_solid_angle(material, xray_line, counts, thickness,
                              .Xray_lines[line]\
                              .energy_keV
     eff_thickness = thickness / np.cos(np.pi * tilt / 180)
-    mat = Material(material, beam_energy)
+    mat = QuantSpec(material, beam_energy)
     w = mat.xray_lines[xray_line]['w']
     sigma = mat.xray_lines[xray_line]['sigma'] * 1e4
     N_atoms = mat.get_atoms_per_volume(element) *\
@@ -1012,7 +876,7 @@ def calc_solid_angle(material, xray_line, counts, thickness,
     return omega
 
 
-class Material:
+class QuantSpec:
     """
     Class to create materials with provided composition
 
@@ -1043,14 +907,15 @@ class Material:
         Number density of atoms per gram of the material
 
     """
-    def __init__(self, name, beam_energy=300, thickness=None,
-                 thickness_sigma=None):
+    def __init__(self, spec, material, beam_energy=None, thickness=None,
+                 thickness_sigma=None, live_time=None, probe_current=None,
+                 specimen_tilt=None):
         """
         Constructor for Material class.
 
         Args
         -----
-        name : str
+        material : str
             Identity of the material.  Acceptable materials are 'NiOx' and
             '2063a'
         beam_energy : float
@@ -1061,16 +926,15 @@ class Material:
         thickness_sigma : float
             Uncertainty in specimen thickness in nanometers
         """
-        mats = ['NiOx', '2063a']
+        known_materials = ['NiOx', '2063a']
 
-        if name in mats:
+        if material in known_materials:
             pass
         else:
             raise ValueError("Unknown material %s. "
                              "Must be one of the following: "
-                             "%s" % (name, ', '.join(mats)))
-        self.name = name
-        self.beam_energy = beam_energy
+                             "%s" % (material, ', '.join(known_materials)))
+        self.material = material
         self.xray_lines = None
         self.elements = None
         self.density = None
@@ -1079,8 +943,50 @@ class Material:
         self.composition_by_mass = None
         self.molar_mass = None
         self.total_atoms_per_gram = None
+        self.spec = spec
+        self.thickness = thickness
+        self.thickness_sigma = thickness_sigma
 
-        if name == 'NiOx':
+        if specimen_tilt:
+            self.specimen_tilt = specimen_tilt
+        elif spec.metadata.Acquisition_instrument.TEM.Stage.tilt_alpha:
+            self.specimen_tilt = \
+                spec.metadata.Acquisition_instrument.TEM.Stage.tilt_alpha
+        else:
+            raise ValueError('Specimen tilt is not defined')
+        if live_time:
+            self.live_time = live_time
+        elif spec.metadata.Acquisition_instrument\
+                          .TEM.Detector.EDS.live_time > 0:
+            self.live_time = \
+                spec.metadata.Acquisition_instrument\
+                             .TEM.Detector.EDS.live_time
+        else:
+            raise ValueError('Spectrum acquisition time is not defined')
+
+        if probe_current:
+            self.probe_current = probe_current
+        elif spec.metadata.Acquisition_instrument.TEM.beam_current > 0:
+            self.probe_current = spec.metadata\
+                                     .Acquisition_instrument\
+                                     .TEM.beam_current
+        else:
+            raise ValueError('Probe current is not defined')
+
+        if beam_energy:
+            self.beam_energy = beam_energy
+        elif 'beam_energy' in spec.metadata\
+                                  .Acquisition_instrument['TEM']\
+                                  .keys():
+            self.beam_energy = spec.metadata\
+                                   .Acquisition_instrument['TEM']\
+                                   .beam_energy
+        else:
+            raise ValueError('Beam energy is not defined')
+
+        self.electron_dose = (self.probe_current * 1e-9
+                              * self.live_time / 1.6e-19)
+        if material == 'NiOx':
             self.elements = ['Ni', 'O']
             self.xray_lines = {'Ni_Ka': {'w': np.nan, 'sigma': np.nan},
                                'O_Ka': {'w': np.nan, 'sigma': np.nan}}
@@ -1090,7 +996,7 @@ class Material:
             if not thickness:
                 self.thickness = 59
             if not thickness_sigma:
-                self.thickness_sigma = 4
+                self.thickness_sigma = 5
             self.composition_by_atom = {'Ni': {'atom_fraction': 0.5,
                                                'sigma': np.nan},
                                         'O': {'atom_fraction': 0.5,
@@ -1099,7 +1005,7 @@ class Material:
             self.composition_by_mass = self.at_to_wt()
             self.total_atoms_per_gram = self.get_atoms_per_gram()
 
-        elif name == '2063a':
+        elif material == '2063a':
             self.elements = ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']
             self.xray_lines = {'Mg_Ka': {'w': np.nan, 'sigma': np.nan},
                                'Si_Ka': {'w': np.nan, 'sigma': np.nan},
@@ -1238,3 +1144,245 @@ class Material:
                             * mass_frac / atomic_weight
                             * self.density)
         return atoms_per_volume
+
+    def get_counts(self, method='model', verbose=False, plot_results=False):
+        self.spec.set_elements([])
+        self.spec.set_lines([])
+        if self.material == 'NiOx':
+            spec = self.spec.isig[0.4:21.].deepcopy()
+            spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo', 'Si'])
+            m = spec.create_model(auto_add_lines=False)
+            m.add_family_lines()
+
+            for i in m[1:]:
+                i.A.bmin = 0.0
+
+            m.fit(bounded=True)
+            m.fit_background()
+
+            lines_to_get = ['Fe_Ka', 'Co_Ka', 'O_Ka', 'Ni_Ka',
+                            'Ni_Kb', 'Mo_Ka', 'Mo_La']
+
+            if verbose:
+                print('Results for Peak Fit')
+                print('**********************')
+                result = m.get_lines_intensity(plot_result=True,
+                                               xray_lines=lines_to_get)
+                print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
+            else:
+                result = m.get_lines_intensity(plot_result=False,
+                                               xray_lines=lines_to_get)
+
+            output = {}
+            for i in range(0, len(result)):
+                line = result[i].metadata.Sample.xray_lines[0]
+                if line in lines_to_get:
+                    output[line] = {'counts': np.around(result[i].data[0], 2),
+                                    'uncertainty': np.nan}
+
+            if plot_results:
+                m.plot(True)
+                ax = plt.gca()
+                labels = ['Data', 'Model', 'Background']
+                ax.legend(labels)
+                ax.set_ylim([-300, 1.1 * spec.data.max()])
+
+        elif self.material == '2063a':
+            spec = self.spec.deepcopy()
+            spec.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
+            m = spec.create_model()
+            # m.remove(['Mg_Kb', 'Fe_Lb3', 'Fe_Ln', 'Ca_Ll', 'Ca_Ln', 'Ar_Kb'])
+            m.free_xray_lines_width('all')
+            m.free_sub_xray_lines_weight(['O_Ka', 'Si_Ka', 'Fe_Ka'])
+            m.free_xray_lines_energy(['O_Ka', 'Fe_Ka', 'Si_Ka'])
+            m['Fe_Kb'].sigma.bmin = 0.02
+            m['Fe_Kb'].sigma.bmax = 1
+            for i in m[1:]:
+                i.A.bmin = 0.0
+
+            m.fit(bounded=True)
+            m.fit_background()
+            m.calibrate_energy_axis(calibrate='resolution')
+
+            lines_to_get = ['Ar_Ka', 'C_Ka', 'Ca_Ka', 'Ca_Kb', 'Ca_La',
+                            'Cu_Ka', 'Cu_Kb', 'Fe_Ka', 'Fe_Kb', 'Mg_Ka',
+                            'O_Ka', 'Si_Ka']
+            if verbose:
+                print('Results for Peak Fit')
+                print('**********************')
+                result = m.get_lines_intensity(plot_result=True,
+                                               xray_lines=lines_to_get)
+                print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
+            else:
+                result = m.get_lines_intensity(plot_result=False,
+                                               xray_lines=lines_to_get)
+
+            output = {}
+            for i in range(0, len(result)):
+                line = result[i].metadata.Sample.xray_lines[0]
+                if line in lines_to_get:
+                    output[line] = {'counts': np.around(result[i].data[0], 2),
+                                    'uncertainty': np.nan}
+            if plot_results:
+                # residuals = spec - m.as_signal()
+
+                m.plot(True)
+                ax = plt.gca()
+                # ax.plot(residuals)
+                labels = ['Data', 'Model', 'Background']
+                # for i in m[1:]:
+                #     labels.append(i.name)
+                # labels.append('Residual')
+                ax.legend(labels)
+                ax.set_ylim([-300, 1.1 * spec.data.max()])
+
+            elif method == 'windows':
+                spec.set_elements([])
+                spec.set_lines([])
+
+                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka',
+                                'Fe_Ka', 'O_Ka', 'Ar_Ka'])
+                ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
+                ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
+                fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
+                mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
+                o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
+                si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
+                bw = np.array([ar_ka_bckg,
+                               ca_ka_bckg,
+                               fe_ka_bckg,
+                               mg_ka_bckg,
+                               o_ka_bckg,
+                               si_ka_bckg])
+
+                if verbose:
+                    [ar_ka,
+                     ca_ka,
+                     fe_ka,
+                     mg_ka,
+                     o_ka,
+                     si_ka] = spec.get_lines_intensity(background_windows=bw,
+                                                       plot_result=True)
+                else:
+                    [ar_ka,
+                     ca_ka,
+                     fe_ka,
+                     mg_ka,
+                     o_ka,
+                     si_ka] = spec.get_lines_intensity(background_windows=bw,
+                                                       plot_result=False)
+
+                output = {'Ar_Ka': {'counts': ar_ka.data[0],
+                                    'uncertainty': np.nan},
+                          'Ca_Ka': {'counts': ca_ka.data[0],
+                                    'uncertainty': np.nan},
+                          'Fe_Ka': {'counts': fe_ka.data[0],
+                                    'uncertainty': np.nan},
+                          'Mg_Ka': {'counts': mg_ka.data[0],
+                                    'uncertainty': np.nan},
+                          'O_Ka': {'counts': o_ka.data[0],
+                                   'uncertainty': np.nan},
+                          'Si_Ka': {'counts': si_ka.data[0],
+                                    'uncertainty': np.nan}}
+        return output
+
+    def get_detector_characteristics(self, element=None, display=True,
+                                     verbose=False):
+        """
+        Calculate detector characteristics from a spectrum of a known material.
+
+        Args
+        ----------
+        spec : Hyperspy Signal1D, EDSSemSpectrum, or EDSTEMSpectrum
+            XEDS spectrum collected from standard material.
+        material : str
+            Name of the standard material.  Must be either 'NiOx' or 2063a
+        thickness : float or int
+            Nominal thickness of standard material in nanometers.
+            Default is 59 nm.
+        live_time : float or int
+            Spectrum acquisition time in seconds. Default is 200 seconds.
+        tilt : float or int
+            Specimen tilt in degrees.  Default is 0 degrees.
+        thickness_error : float
+            Error in nominal thickness measurement (+/- nanometers)
+        probe_current : float
+            Probe current in nanoamps. Default is 0.3 nA.
+        display : bool
+            If True, print the results to the terminal.
+
+        Returns
+        ----------
+        results : Dict
+            Dictionary containing all measured and calculated values.
+
+        """
+        if not self.thickness:
+            raise ValueError('Specimen thickness not defined')
+
+        if not self.probe_current:
+            raise ValueError('Probe current is not defined')
+
+        if not self.beam_energy:
+            raise ValueError('Beam energy is not defined')
+
+        if self.material == 'NiOx':
+            element = 'Ni'
+            xray_lines = ['Ni_Ka', 'Ni_Kb']
+            lines = ['Ka', 'Kb']
+            intensities = self.get_counts()
+            counts = intensities['Ni_Ka']['counts']\
+                + intensities['Ni_Kb']['counts']
+
+        elif self.material == '2063a':
+            intensities = self.get_counts()
+            if not element:
+                element = 'Fe'
+            if element == 'Fe':
+                xray_lines = ['Fe_Ka', 'Fe_Kb']
+                lines = ['Ka', 'Kb']
+                counts = intensities['Fe_Ka']['counts']\
+                    + intensities['Fe_Kb']['counts']
+            elif element == 'Si':
+                xray_lines = ['Si_Ka', ]
+                lines = ['Ka', ]
+                counts = intensities['Si_Ka']['counts']
+        else:
+            raise ValueError('Unknown material')
+        xray_energies = [None] * len(xray_lines)
+        for i in range(0, len(xray_lines)):
+            xray_energies[i] = hs.material.elements[element]\
+                                 .Atomic_properties\
+                                 .Xray_lines[lines[i]]\
+                                 .energy_keV
+        eff_thickness = self.thickness / np.cos(np.pi
+                                                * self.specimen_tilt
+                                                / 180)
+        w = self.xray_lines[xray_lines[0]]['w']
+        sigma = self.xray_lines[xray_lines[0]]['sigma'] * 1e4
+        N_atoms = self.get_atoms_per_volume(element) *\
+            (eff_thickness * 1e-7)
+        nu = counts / (N_atoms * sigma * w * self.electron_dose)
+        omega = 4 * np.pi * nu
+        omega = np.round(omega, 3)
+
+        if verbose:
+            print('Detector Solid-angle Calculation')
+            print('*************************************')
+            print('Beam energy (keV): %s' % str(self.beam_energy))
+            print('Probe current (nA): %s' % str(self.probe_current))
+            print('Live time (s): %s' % str(self.live_time))
+            print('Electron dose: %.2e' % self.electron_dose)
+            print('Nominal sample thickness (nm): %.1f' % self.thickness)
+            print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
+            print('X-ray line: %s @ %.2f keV ; %s @ %.2f keV' %
+                  (xray_lines[0], xray_energies[0],
+                   xray_lines[1], xray_energies[1]))
+            print('Counts detected: %s' % str(np.round(counts)))
+            print('Ionization Cross-section (cm^2): %.2e' % sigma)
+            print('Fluorescence Yield: %.3f' % w)
+            print('Atoms per Unit Area (cm^-2): %.2e\n' % N_atoms)
+            print('Collection Efficiency: %.2f %%' % (100 * nu))
+            print('Collection Solid-angle (srs): %.3f' % omega)
+
+        return omega
