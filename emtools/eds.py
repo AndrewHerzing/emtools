@@ -15,6 +15,13 @@ import numpy as np
 import pprint as pp
 import imp
 
+datapath = imp.find_module("emtools")[1] + "/data/"
+
+
+def get_test_spectrum():
+    s = hs.load(datapath + 'XEDS_2063a_StageTilt20_300keV_500pA.hdf5')
+    return s
+
 
 def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
              energy_range=None, intensity_range=None, horz_offset=None,
@@ -127,7 +134,6 @@ def get_detector_efficiency(detector_name):
                          "Must be one of the following: "
                          "%s" % (detector_name, ', '.join(detectors)))
 
-    datapath = imp.find_module("emtools")[1] + "/data/"
     detector_efficiency = np.loadtxt(datapath +
                                      detector_name +
                                      '_DetectorEfficiencyCurve.txt')
@@ -1059,7 +1065,6 @@ class QuantSpec:
         """
         if not self.xray_lines:
             raise ValueError('No X-ray lines defined!')
-        datapath = imp.find_module("emtools")[1] + "/data/"
         w = np.loadtxt(datapath + 'FluorescenceYield.txt')
         sigma = np.loadtxt(datapath +
                            "AbsoluteIonizationCrossSection" +
