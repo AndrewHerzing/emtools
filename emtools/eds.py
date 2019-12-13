@@ -875,16 +875,16 @@ class QuantSpec:
 
             lines_to_get = ['Fe_Ka', 'Co_Ka', 'O_Ka', 'Ni_Ka',
                             'Ni_Kb', 'Mo_Ka', 'Mo_La']
-
+            result = m.get_lines_intensity(plot_result=False,
+                                           xray_lines=lines_to_get)
             if verbose:
                 print('Results for Peak Fit')
                 print('**********************')
-                result = m.get_lines_intensity(plot_result=True,
-                                               xray_lines=lines_to_get)
-                print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
-            else:
-                result = m.get_lines_intensity(plot_result=False,
-                                               xray_lines=lines_to_get)
+                for i in result:
+                    print('%s: %.2f counts' %
+                          (i.metadata.Sample.xray_lines[0], i.data))
+
+                print('\nReduced Chi-Sq: %.2f\n' % m.red_chisq.data)
 
             output = {}
             for i in range(0, len(result)):
@@ -920,15 +920,15 @@ class QuantSpec:
             lines_to_get = ['Ar_Ka', 'C_Ka', 'Ca_Ka', 'Ca_Kb', 'Ca_La',
                             'Cu_Ka', 'Cu_Kb', 'Fe_Ka', 'Fe_Kb', 'Mg_Ka',
                             'O_Ka', 'Si_Ka']
+            result = m.get_lines_intensity(plot_result=False,
+                                           xray_lines=lines_to_get)
             if verbose:
                 print('Results for Peak Fit')
                 print('**********************')
-                result = m.get_lines_intensity(plot_result=True,
-                                               xray_lines=lines_to_get)
+                for i in result:
+                    print('%s: %.2f counts' %
+                          (i.metadata.Sample.xray_lines[0], i.data))
                 print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
-            else:
-                result = m.get_lines_intensity(plot_result=False,
-                                               xray_lines=lines_to_get)
 
             output = {}
             for i in range(0, len(result)):
