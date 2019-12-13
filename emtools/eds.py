@@ -893,13 +893,6 @@ class QuantSpec:
                     output[line] = {'counts': np.around(result[i].data[0], 2),
                                     'uncertainty': np.nan}
 
-            if plot_results:
-                m.plot(True)
-                ax = plt.gca()
-                labels = ['Data', 'Model', 'Background']
-                ax.legend(labels)
-                ax.set_ylim([-300, 1.1 * spec.data.max()])
-
         elif self.material == '2063a':
             spec = self.spec.deepcopy()
             spec.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
@@ -936,67 +929,61 @@ class QuantSpec:
                 if line in lines_to_get:
                     output[line] = {'counts': np.around(result[i].data[0], 2),
                                     'uncertainty': np.nan}
-            if plot_results:
-                # residuals = spec - m.as_signal()
 
-                m.plot(True)
-                ax = plt.gca()
-                # ax.plot(residuals)
-                labels = ['Data', 'Model', 'Background']
-                # for i in m[1:]:
-                #     labels.append(i.name)
-                # labels.append('Residual')
-                ax.legend(labels)
-                ax.set_ylim([-300, 1.1 * spec.data.max()])
+            # elif method == 'windows':
+            #     spec.set_elements([])
+            #     spec.set_lines([])
 
-            elif method == 'windows':
-                spec.set_elements([])
-                spec.set_lines([])
+            #     spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka',
+            #                     'Fe_Ka', 'O_Ka', 'Ar_Ka'])
+            #     ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
+            #     ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
+            #     fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
+            #     mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
+            #     o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
+            #     si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
+            #     bw = np.array([ar_ka_bckg,
+            #                    ca_ka_bckg,
+            #                    fe_ka_bckg,
+            #                    mg_ka_bckg,
+            #                    o_ka_bckg,
+            #                    si_ka_bckg])
 
-                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka',
-                                'Fe_Ka', 'O_Ka', 'Ar_Ka'])
-                ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
-                ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
-                fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
-                mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
-                o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
-                si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
-                bw = np.array([ar_ka_bckg,
-                               ca_ka_bckg,
-                               fe_ka_bckg,
-                               mg_ka_bckg,
-                               o_ka_bckg,
-                               si_ka_bckg])
+            #     if verbose:
+            #         [ar_ka,
+            #          ca_ka,
+            #          fe_ka,
+            #          mg_ka,
+            #          o_ka,
+            #          si_ka] = spec.get_lines_intensity(background_windows=bw,
+            #                                            plot_result=True)
+            #     else:
+            #         [ar_ka,
+            #          ca_ka,
+            #          fe_ka,
+            #          mg_ka,
+            #          o_ka,
+            #          si_ka] = spec.get_lines_intensity(background_windows=bw,
+            #                                            plot_result=False)
 
-                if verbose:
-                    [ar_ka,
-                     ca_ka,
-                     fe_ka,
-                     mg_ka,
-                     o_ka,
-                     si_ka] = spec.get_lines_intensity(background_windows=bw,
-                                                       plot_result=True)
-                else:
-                    [ar_ka,
-                     ca_ka,
-                     fe_ka,
-                     mg_ka,
-                     o_ka,
-                     si_ka] = spec.get_lines_intensity(background_windows=bw,
-                                                       plot_result=False)
-
-                output = {'Ar_Ka': {'counts': ar_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'Ca_Ka': {'counts': ca_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'Fe_Ka': {'counts': fe_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'Mg_Ka': {'counts': mg_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'O_Ka': {'counts': o_ka.data[0],
-                                   'uncertainty': np.nan},
-                          'Si_Ka': {'counts': si_ka.data[0],
-                                    'uncertainty': np.nan}}
+            #     output = {'Ar_Ka': {'counts': ar_ka.data[0],
+            #                         'uncertainty': np.nan},
+            #               'Ca_Ka': {'counts': ca_ka.data[0],
+            #                         'uncertainty': np.nan},
+            #               'Fe_Ka': {'counts': fe_ka.data[0],
+            #                         'uncertainty': np.nan},
+            #               'Mg_Ka': {'counts': mg_ka.data[0],
+            #                         'uncertainty': np.nan},
+            #               'O_Ka': {'counts': o_ka.data[0],
+            #                        'uncertainty': np.nan},
+            #               'Si_Ka': {'counts': si_ka.data[0],
+            #                         'uncertainty': np.nan}}
+        if plot_results:
+            m.plot(True)
+            ax = plt.gca()
+            labels = ['Data', 'Model', 'Background']
+            ax.legend(labels)
+            ax.set_ylim([-300, 1.1 * spec.data.max()])
         return output
 
     def get_detector_characteristics(self, element=None, display=True,
