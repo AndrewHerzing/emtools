@@ -18,8 +18,14 @@ import imp
 datapath = imp.find_module("emtools")[1] + "/data/"
 
 
-def get_test_spectrum():
-    s = hs.load(datapath + 'XEDS_2063a_StageTilt20_300keV_500pA.hdf5')
+def get_test_spectrum(material='2063a'):
+    allowed_mats = ['2063a', 'niox']
+
+    if material.lower() not in allowed_mats:
+        raise ValueError('Unknown material. Must be one of %s.' %
+                         ', '.join(allowed_mats))
+
+    s = hs.load(datapath + 'XEDS_' + material + '.hdf5')
     return s
 
 
