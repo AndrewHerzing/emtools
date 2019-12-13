@@ -1375,9 +1375,9 @@ class QuantSpec:
             print('Electron dose: %.2e' % self.electron_dose)
             print('Nominal sample thickness (nm): %.1f' % self.thickness)
             print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
-            print('X-ray line: %s @ %.2f keV ; %s @ %.2f keV' %
-                  (xray_lines[0], xray_energies[0],
-                   xray_lines[1], xray_energies[1]))
+            for i in range(0, len(xray_lines)):
+                print('X-ray line: %s @ %.2f keV' %
+                      (xray_lines[i], xray_energies[0]))
             print('Counts detected: %s' % str(np.round(counts)))
             print('Ionization Cross-section (cm^2): %.2e' % sigma)
             print('Fluorescence Yield: %.3f' % w)
