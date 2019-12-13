@@ -1,0 +1,32 @@
+e0 = epq.ToSI.keV(80)
+
+print('Element\tw\tsigma (m^2)')
+print('************************************')
+for i in ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar',]:
+	shell = epq.AtomicShell(epq.Element.byName(i), 0)
+	w = epq.FluorescenceYield.ENDLIB97.compute(shell)
+	sigma = epq.AbsoluteIonizationCrossSection.BoteSalvat2008.computeFamily(shell, e0)
+	print('%s\t%.4f\t%.4e' % (shell, w, sigma))
+	
+atoms_per_kg = 0
+for i in ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar',]:
+	atoms_per_kg += mat.atomsPerKg(epq.Element.byName(i), False)
+
+with open('FluorescenceYield.txt', 'w') as h:
+	for i in range(1, 100):
+		shell = epq.AtomicShell(epq.Element.byAtomicNumber(i), 0)
+		w = epq.FluorescenceYield.ENDLIB97.compute(shell)
+		# sigma = epq.AbsoluteIonizationCrossSection.BoteSalvat2008.computeFamily(shell, e0)
+		# print('%s\t%.4f\t%.4e' % (shell, w, sigma))
+		# print(w)
+		out = "%.4f" % w
+		h.write("%s\t%s\n" % (str(i), str(out)))
+
+for energy in [80, 150, 200, 300]:
+	e0 = epq.ToSI.keV(energy)
+	with open('AbsoluteIonizationCrossSectionBoteSalvat2008_KShell_%skeV.txt' % str(energy), 'w') as h:
+		for i in range(1, 100):
+			shell = epq.AtomicShell(epq.Element.byAtomicNumber(i), 0)
+			sigma = epq.AbsoluteIonizationCrossSection.BoteSalvat2008.computeFamily(shell, e0)
+			out = "%.4e" % sigma
+			h.write("%s\t%s\n" % (str(i), str(out)))
