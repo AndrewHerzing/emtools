@@ -526,70 +526,6 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
     return s
 
 
-def calc_solid_angle(material, xray_line, counts, thickness,
-                     beam_energy, probe_current, live_time, tilt=0,
-                     verbose=False):
-    """
-    Calcualte the solid angle of a detectr from measured spectrum
-
-    Args
-    ------
-    material : str
-        Material from which the spectrum was collected.  Must be either 'NiOx'
-        or '2063a'
-    xray_line : str
-        X-ray line to use for the calculation
-    counts : int
-        Number of X-ray counts detected for the chosen line
-    thickness : float
-        Thickness of the specimen in nanometers analyzed
-    beam_energy : float
-        Energy of the electrons in keV used to collect the spectrum
-    probe_current : float
-        Probe current in nA used to generat the spectrum
-    live_time : float
-        Spectrum acquisition live time in seconds
-    tilt : float
-        Specimen tilt in degrees
-    vebose : bool
-        If True, print parameters and calculated results to the terminal
-    """
-
-    element, line = xray_line.split('_')
-    xray_energy = hs.material.elements[element]\
-                             .Atomic_properties\
-                             .Xray_lines[line]\
-                             .energy_keV
-    eff_thickness = thickness / np.cos(np.pi * tilt / 180)
-    mat = QuantSpec(material, beam_energy)
-    w = mat.xray_lines[xray_line]['w']
-    sigma = mat.xray_lines[xray_line]['sigma'] * 1e4
-    N_atoms = mat.get_atoms_per_volume(element) *\
-        (eff_thickness * 1e-7)
-    Ne = probe_current * 1e-9 * live_time / 1.6e-19
-    nu = counts / (N_atoms * sigma * w * Ne)
-    omega = 4 * np.pi * nu
-    omega = np.round(omega, 3)
-
-    if verbose:
-        print('Detector Solid-angle Calculation')
-        print('*************************************')
-        print('Beam energy (keV): %s' % str(beam_energy))
-        print('Probe current (nA): %s' % str(probe_current))
-        print('Live time (s): %s' % str(live_time))
-        print('Electron dose: %.2e' % Ne)
-        print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
-        print('X-ray line: %s @ %.2f keV' % (xray_line, xray_energy))
-        print('Counts detected: %s' % str(counts))
-        print('Ionization Cross-section (cm^2): %.2e' % sigma)
-        print('Fluorescence Yield: %.3f' % w)
-        print('Atoms per Unit Area (cm^-2): %.2e\n' % N_atoms)
-        print('Collection Efficiency: %.2f %%' % (100 * nu))
-        print('Collection Solid-angle (srs): %.3f' % omega)
-
-    return omega
-
-
 class QuantSpec:
     """
     Class to create materials with provided composition
@@ -1088,3 +1024,107 @@ class QuantSpec:
             print('Collection Solid-angle (srs): %.3f' % omega)
 
         return omega
+
+    def calc_zeta_factor(self, plot_result=False, verbose=False):
+        """
+        Calculate Zeta factor from a spectrum collected from 2063a SRM
+
+        Args
+        ------
+        plot_result : bool
+            If True, plot calculated Zeta factors as a function of
+            X-ray energy.
+        verbose : bool
+            If True, print the results to the terminal
+        """
+        results = self.get_counts()
+
+        rho = self.density
+        rho_sigma = self.density_sigma
+        thickness = self.thickness / np.cos(self.specimen_tilt * np.pi / 180)
+        thickness_sigma = self.thickness_sigma
+        dose = self.electron_dose
+
+        mass_fraction_mg = self.composition_by_mass['Mg']['mass_fraction']
+        uncertainty_mg = self.composition_by_mass['Mg']['sigma']
+        zeta_mg = rho * thickness * mass_fraction_mg * \
+            dose / results['Mg_Ka']['counts']
+        zeta_mg_sigma = np.sqrt((uncertainty_mg /
+                                mass_fraction_mg)**2 +
+                                (2 * np.sqrt(results['Mg_Ka']['counts']) /
+                                results['Mg_Ka']['counts'])**2 +
+                                (thickness_sigma / thickness)**2 +
+                                (rho_sigma / rho)**2) * zeta_mg
+
+        mass_fraction_si = self.composition_by_mass['Si']['mass_fraction']
+        uncertainty_si = self.composition_by_mass['Si']['sigma']
+        zeta_si = rho * thickness * mass_fraction_si * \
+            dose / results['Si_Ka']['counts']
+        zeta_si_sigma = np.sqrt((uncertainty_si /
+                                mass_fraction_si)**2 +
+                                (2 * np.sqrt(results['Si_Ka']['counts']) /
+                                results['Si_Ka']['counts'])**2 +
+                                (thickness_sigma / thickness)**2 +
+                                (rho_sigma / rho)**2) * zeta_si
+
+        mass_fraction_ca = self.composition_by_mass['Ca']['mass_fraction']
+        uncertainty_ca = self.composition_by_mass['Ca']['sigma']
+        zeta_ca = rho * thickness * mass_fraction_ca * \
+            dose / results['Ca_Ka']['counts']
+        zeta_ca_sigma = np.sqrt((uncertainty_ca /
+                                mass_fraction_ca)**2 +
+                                (2 * np.sqrt(results['Ca_Ka']['counts']) /
+                                results['Ca_Ka']['counts'])**2 +
+                                (thickness_sigma / thickness)**2 +
+                                (rho_sigma / rho)**2) * zeta_ca
+
+        mass_fraction_fe = self.composition_by_mass['Fe']['mass_fraction']
+        uncertainty_fe = self.composition_by_mass['Fe']['sigma']
+        zeta_fe = rho * thickness * mass_fraction_fe * \
+            dose / results['Fe_Ka']['counts']
+        zeta_fe_sigma = np.sqrt((uncertainty_fe /
+                                mass_fraction_fe)**2 +
+                                (2 * np.sqrt(results['Fe_Ka']['counts']) /
+                                results['Fe_Ka']['counts'])**2 +
+                                (thickness_sigma / thickness)**2 +
+                                (rho_sigma / rho)**2) * zeta_fe
+
+        mass_fraction_o = self.composition_by_mass['O']['mass_fraction']
+        uncertainty_o = self.composition_by_mass['O']['sigma']
+        zeta_o = rho * thickness * mass_fraction_o * \
+            dose / results['O_Ka']['counts']
+        zeta_o_sigma = np.sqrt((uncertainty_o /
+                                mass_fraction_o)**2 +
+                               (2 * np.sqrt(results['O_Ka']['counts']) /
+                                results['O_Ka']['counts'])**2 +
+                               (thickness_sigma / thickness)**2 +
+                               (rho_sigma / rho)**2) * zeta_o
+
+        if plot_result:
+            xray_energies = [hs.material.elements[i].Atomic_properties.
+                             Xray_lines['Ka']['energy_keV'] for i in
+                             ['Mg', 'Si', 'Ca', 'Fe', 'O']]
+            plt.figure()
+            plt.scatter(xray_energies, [zeta_mg, zeta_si, zeta_ca,
+                                        zeta_fe, zeta_o])
+
+        zeta_factors = {'Mg_Ka': {'zeta_factor': np.round(zeta_mg, 2),
+                                  'zeta_factor_sigma':
+                                  np.round(zeta_mg_sigma, 2)},
+                        'Si_Ka': {'zeta_factor': np.round(zeta_si, 2),
+                                  'zeta_factor_sigma':
+                                  np.round(zeta_si_sigma, 2)},
+                        'Ca_Ka': {'zeta_factor': np.round(zeta_ca, 2),
+                                  'zeta_factor_sigma':
+                                  np.round(zeta_ca_sigma, 2)},
+                        'Fe_Ka': {'zeta_factor':
+                                  np.round(zeta_fe, 2),
+                                  'zeta_factor_sigma':
+                                  np.round(zeta_fe_sigma, 2)},
+                        'O_Ka': {'zeta_factor': np.round(zeta_o, 2),
+                                 'zeta_factor_sigma':
+                                 np.round(zeta_o_sigma, 2)}
+                        }
+        if verbose:
+            pp.pprint(zeta_factors)
+        return zeta_factors
