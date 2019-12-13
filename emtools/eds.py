@@ -596,6 +596,7 @@ class QuantSpec:
         self.spec = spec
         self.thickness = thickness
         self.thickness_sigma = thickness_sigma
+        self.counts = None
 
         if specimen_tilt:
             self.specimen_tilt = specimen_tilt
@@ -794,7 +795,8 @@ class QuantSpec:
                             * self.density)
         return atoms_per_volume
 
-    def get_counts(self, method='model', verbose=False, plot_results=False):
+    def get_intensities(self, method='model', verbose=False,
+                        plot_results=False):
         self.spec.set_elements([])
         self.spec.set_lines([])
         if self.material == 'NiOx':
@@ -922,7 +924,8 @@ class QuantSpec:
             labels = ['Data', 'Model', 'Background']
             ax.legend(labels)
             ax.set_ylim([-300, 1.1 * spec.data.max()])
-        return output
+        self.counts = output
+        return
 
     def get_detector_characteristics(self, element=None, display=True,
                                      verbose=False):
@@ -968,23 +971,25 @@ class QuantSpec:
             element = 'Ni'
             xray_lines = ['Ni_Ka', 'Ni_Kb']
             lines = ['Ka', 'Kb']
-            intensities = self.get_counts()
-            counts = intensities['Ni_Ka']['counts']\
-                + intensities['Ni_Kb']['counts']
+            if self.intensities is None:
+                self.get_intensities()
+            counts = self.intensities['Ni_Ka']['counts']\
+                + self.intensities['Ni_Kb']['counts']
 
         elif self.material == '2063a':
-            intensities = self.get_counts()
+            if self.intensites is None:
+                self.get_intensities()
             if not element:
                 element = 'Fe'
             if element == 'Fe':
                 xray_lines = ['Fe_Ka', 'Fe_Kb']
                 lines = ['Ka', 'Kb']
-                counts = intensities['Fe_Ka']['counts']\
-                    + intensities['Fe_Kb']['counts']
+                counts = self.intensities['Fe_Ka']['counts']\
+                    + self.intensities['Fe_Kb']['counts']
             elif element == 'Si':
                 xray_lines = ['Si_Ka', ]
                 lines = ['Ka', ]
-                counts = intensities['Si_Ka']['counts']
+                counts = self.intensities['Si_Ka']['counts']
         else:
             raise ValueError('Unknown material')
         xray_energies = [None] * len(xray_lines)
@@ -1037,7 +1042,8 @@ class QuantSpec:
         verbose : bool
             If True, print the results to the terminal
         """
-        results = self.get_counts()
+        if self.intensities is None:
+            self.get_intensities()
 
         rho = self.density
         rho_sigma = self.density_sigma
@@ -1048,55 +1054,61 @@ class QuantSpec:
         mass_fraction_mg = self.composition_by_mass['Mg']['mass_fraction']
         uncertainty_mg = self.composition_by_mass['Mg']['sigma']
         zeta_mg = rho * thickness * mass_fraction_mg * \
-            dose / results['Mg_Ka']['counts']
+            dose / self.intensities['Mg_Ka']['counts']
         zeta_mg_sigma = np.sqrt((uncertainty_mg /
                                 mass_fraction_mg)**2 +
-                                (2 * np.sqrt(results['Mg_Ka']['counts']) /
-                                results['Mg_Ka']['counts'])**2 +
+                                (2 *
+                                np.sqrt(self.intensities['Mg_Ka']['counts']) /
+                                self.materialintensities
+                                ['Mg_Ka']['counts'])**2 +
                                 (thickness_sigma / thickness)**2 +
                                 (rho_sigma / rho)**2) * zeta_mg
 
         mass_fraction_si = self.composition_by_mass['Si']['mass_fraction']
         uncertainty_si = self.composition_by_mass['Si']['sigma']
         zeta_si = rho * thickness * mass_fraction_si * \
-            dose / results['Si_Ka']['counts']
+            dose / self.intensities['Si_Ka']['counts']
         zeta_si_sigma = np.sqrt((uncertainty_si /
                                 mass_fraction_si)**2 +
-                                (2 * np.sqrt(results['Si_Ka']['counts']) /
-                                results['Si_Ka']['counts'])**2 +
+                                (2 *
+                                np.sqrt(self.intensities['Si_Ka']['counts']) /
+                                self.intensities['Si_Ka']['counts'])**2 +
                                 (thickness_sigma / thickness)**2 +
                                 (rho_sigma / rho)**2) * zeta_si
 
         mass_fraction_ca = self.composition_by_mass['Ca']['mass_fraction']
         uncertainty_ca = self.composition_by_mass['Ca']['sigma']
         zeta_ca = rho * thickness * mass_fraction_ca * \
-            dose / results['Ca_Ka']['counts']
+            dose / self.intensities['Ca_Ka']['counts']
         zeta_ca_sigma = np.sqrt((uncertainty_ca /
                                 mass_fraction_ca)**2 +
-                                (2 * np.sqrt(results['Ca_Ka']['counts']) /
-                                results['Ca_Ka']['counts'])**2 +
+                                (2 *
+                                np.sqrt(self.intensities['Ca_Ka']['counts']) /
+                                self.intensities['Ca_Ka']['counts'])**2 +
                                 (thickness_sigma / thickness)**2 +
                                 (rho_sigma / rho)**2) * zeta_ca
 
         mass_fraction_fe = self.composition_by_mass['Fe']['mass_fraction']
         uncertainty_fe = self.composition_by_mass['Fe']['sigma']
         zeta_fe = rho * thickness * mass_fraction_fe * \
-            dose / results['Fe_Ka']['counts']
+            dose / self.intensities['Fe_Ka']['counts']
         zeta_fe_sigma = np.sqrt((uncertainty_fe /
                                 mass_fraction_fe)**2 +
-                                (2 * np.sqrt(results['Fe_Ka']['counts']) /
-                                results['Fe_Ka']['counts'])**2 +
+                                (2 *
+                                np.sqrt(self.intensities['Fe_Ka']['counts']) /
+                                self.intensities['Fe_Ka']['counts'])**2 +
                                 (thickness_sigma / thickness)**2 +
                                 (rho_sigma / rho)**2) * zeta_fe
 
         mass_fraction_o = self.composition_by_mass['O']['mass_fraction']
         uncertainty_o = self.composition_by_mass['O']['sigma']
         zeta_o = rho * thickness * mass_fraction_o * \
-            dose / results['O_Ka']['counts']
+            dose / self.intensities['O_Ka']['counts']
         zeta_o_sigma = np.sqrt((uncertainty_o /
                                 mass_fraction_o)**2 +
-                               (2 * np.sqrt(results['O_Ka']['counts']) /
-                                results['O_Ka']['counts'])**2 +
+                               (2 *
+                               np.sqrt(self.intensities['O_Ka']['counts']) /
+                                self.intensities['O_Ka']['counts'])**2 +
                                (thickness_sigma / thickness)**2 +
                                (rho_sigma / rho)**2) * zeta_o
 
