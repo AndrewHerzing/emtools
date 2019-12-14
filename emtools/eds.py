@@ -596,7 +596,7 @@ class QuantSpec:
         self.spec = spec
         self.thickness = thickness
         self.thickness_sigma = thickness_sigma
-        self.counts = None
+        self.intensities = None
 
         if specimen_tilt:
             self.specimen_tilt = specimen_tilt
@@ -924,7 +924,7 @@ class QuantSpec:
             labels = ['Data', 'Model', 'Background']
             ax.legend(labels)
             ax.set_ylim([-300, 1.1 * spec.data.max()])
-        self.counts = output
+        self.intensities = output
         return
 
     def get_detector_characteristics(self, element=None, display=True,
@@ -1059,7 +1059,7 @@ class QuantSpec:
                                 mass_fraction_mg)**2 +
                                 (2 *
                                 np.sqrt(self.intensities['Mg_Ka']['counts']) /
-                                self.materialintensities
+                                self.intensities
                                 ['Mg_Ka']['counts'])**2 +
                                 (thickness_sigma / thickness)**2 +
                                 (rho_sigma / rho)**2) * zeta_mg
