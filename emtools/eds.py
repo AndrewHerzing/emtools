@@ -799,36 +799,62 @@ class QuantSpec:
                         plot_results=False):
         self.spec.set_elements([])
         self.spec.set_lines([])
+
         if self.material == 'NiOx':
-            spec = self.spec.isig[0.4:21.].deepcopy()
-            spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo', 'Si'])
-            m = spec.create_model(auto_add_lines=False)
-            m.add_family_lines()
+            if method == 'model':
+                spec = self.spec.isig[0.4:21.].deepcopy()
+                spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo', 'Si'])
+                m = spec.create_model(auto_add_lines=False)
+                m.add_family_lines()
 
-            for i in m[1:]:
-                i.A.bmin = 0.0
+                for i in m[1:]:
+                    i.A.bmin = 0.0
 
-            m.fit(bounded=True)
-            m.fit_background()
+                m.fit(bounded=True)
+                m.fit_background()
 
-            lines_to_get = ['Fe_Ka', 'Co_Ka', 'O_Ka', 'Ni_Ka',
-                            'Ni_Kb', 'Mo_Ka', 'Mo_La']
-            result = m.get_lines_intensity(plot_result=False,
-                                           xray_lines=lines_to_get)
-            if verbose:
-                print('Results for Peak Fit')
-                print('**********************')
+                lines_to_get = ['Fe_Ka', 'Co_Ka', 'O_Ka', 'Ni_Ka',
+                                'Ni_Kb', 'Mo_Ka', 'Mo_La']
+                result = m.get_lines_intensity(plot_result=False,
+                                               xray_lines=lines_to_get)
+                if verbose:
+                    print('Results for Peak Fit')
+                    print('**********************')
+                    for i in result:
+                        print('%s: %.2f counts' %
+                              (i.metadata.Sample.xray_lines[0], i.data))
+
+                    print('\nReduced Chi-Sq: %.2f\n' % m.red_chisq.data)
+
+                output = {}
+                for i in range(0, len(result)):
+                    line = result[i].metadata.Sample.xray_lines[0]
+                    if line in lines_to_get:
+                        output[line] = {'counts':
+                                        np.around(result[i].data[0], 2),
+                                        'uncertainty':
+                                        np.nan}
+            elif method == 'windows':
+                spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo', 'Si'])
+                spec.add_lines(['Co_Ka', 'Fe_Ka', 'Ni_Ka',
+                                'Mo_Ka', 'O_Ka', 'Si_Ka',
+                                'Mo_La', 'Ni_La'])
+                bw = spec.estimate_background_windows(line_width=[1, 1])
+
+                result = spec.\
+                    get_lines_intensity(background_windows=bw,
+                                        plot_result=False)
+                if verbose:
+                    print('Results for Window Method')
+                    print('**********************')
+                    for i in result:
+                        print('%s: %.2f counts' %
+                              (i.metadata.Sample.xray_lines[0], i.data[0]))
+
+                output = {}
                 for i in result:
-                    print('%s: %.2f counts' %
-                          (i.metadata.Sample.xray_lines[0], i.data))
-
-                print('\nReduced Chi-Sq: %.2f\n' % m.red_chisq.data)
-
-            output = {}
-            for i in range(0, len(result)):
-                line = result[i].metadata.Sample.xray_lines[0]
-                if line in lines_to_get:
-                    output[line] = {'counts': np.around(result[i].data[0], 2),
+                    line = i.metadata.Sample.xray_lines[0]
+                    output[line] = {'counts': np.round(i.data[0], 2),
                                     'uncertainty': np.nan}
 
         elif self.material == '2063a':
