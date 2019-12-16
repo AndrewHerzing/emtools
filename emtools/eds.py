@@ -797,159 +797,109 @@ class QuantSpec:
 
     def get_intensities(self, method='model', verbose=False,
                         plot_results=False):
-        self.spec.set_elements([])
-        self.spec.set_lines([])
+        spec = self.spec.deepcopy()
+        spec.set_elements([])
+        spec.set_lines([])
 
-        if self.material == 'NiOx':
-            if method == 'model':
-                spec = self.spec.isig[0.4:21.].deepcopy()
-                spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo', 'Si'])
-                m = spec.create_model(auto_add_lines=False)
-                m.add_family_lines()
-
-                for i in m[1:]:
-                    i.A.bmin = 0.0
-
-                m.fit(bounded=True)
-                m.fit_background()
-
-                lines_to_get = ['Fe_Ka', 'Co_Ka', 'O_Ka', 'Ni_Ka',
-                                'Ni_Kb', 'Mo_Ka', 'Mo_La']
-                result = m.get_lines_intensity(plot_result=False,
-                                               xray_lines=lines_to_get)
-                if verbose:
-                    print('Results for Peak Fit')
-                    print('**********************')
-                    for i in result:
-                        print('%s: %.2f counts' %
-                              (i.metadata.Sample.xray_lines[0], i.data))
-
-                    print('\nReduced Chi-Sq: %.2f\n' % m.red_chisq.data)
-
-                output = {}
-                for i in range(0, len(result)):
-                    line = result[i].metadata.Sample.xray_lines[0]
-                    if line in lines_to_get:
-                        output[line] = {'counts':
-                                        np.around(result[i].data[0], 2),
-                                        'uncertainty':
-                                        np.nan}
-            elif method == 'windows':
-                spec.add_elements(['Co', 'Fe', 'Ni', 'O', 'Mo', 'Si'])
-                spec.add_lines(['Co_Ka', 'Fe_Ka', 'Ni_Ka',
+        if method == 'windows':
+            if self.material == 'NiOx':
+                spec.add_elements(['Fe', 'Ni', 'O', 'Mo', 'Si'])
+                spec.add_lines(['Fe_Ka', 'Ni_Ka', 'Ni_Kb',
                                 'Mo_Ka', 'O_Ka', 'Si_Ka',
                                 'Mo_La', 'Ni_La'])
-                bw = spec.estimate_background_windows(line_width=[1, 1])
+                lines_to_get = ['Fe_Ka', 'O_Ka', 'Ni_Ka',
+                                'Ni_Kb', 'Mo_Ka', 'Mo_La']
+                bw = np.array([[6.1, 6.2, 8.6, 8.7],
+                               [16.9, 17.1, 17.9, 18.0],
+                               [2.1, 2.2, 2.5, 2.6],
+                               [6.1, 6.2, 8.6, 8.7],
+                               [6.1, 6.2, 8.6, 8.7],
+                               [0.6, 0.7, 1.0, 1.1],
+                               [0.1, 0.2, 0.6, 0.7],
+                               [1.5, 1.6, 1.9, 2.0]])
 
-                result = spec.\
-                    get_lines_intensity(background_windows=bw,
-                                        plot_result=False)
-                if verbose:
-                    print('Results for Window Method')
-                    print('**********************')
-                    for i in result:
-                        print('%s: %.2f counts' %
-                              (i.metadata.Sample.xray_lines[0], i.data[0]))
-
-                output = {}
-                for i in result:
-                    line = i.metadata.Sample.xray_lines[0]
-                    output[line] = {'counts': np.round(i.data[0], 2),
-                                    'uncertainty': np.nan}
-
-        elif self.material == '2063a':
-            if method == 'model':
-                spec = self.spec.deepcopy()
-                spec.add_elements(['C', 'Mg', 'Si', 'Ca',
-                                   'Fe', 'O', 'Ar', 'Cu', ])
-                m = spec.create_model()
-                m.free_xray_lines_width('all')
-                m.free_sub_xray_lines_weight(['O_Ka', 'Si_Ka', 'Fe_Ka'])
-                m.free_xray_lines_energy(['O_Ka', 'Fe_Ka', 'Si_Ka'])
-                m['Fe_Kb'].sigma.bmin = 0.02
-                m['Fe_Kb'].sigma.bmax = 1
-                for i in m[1:]:
-                    i.A.bmin = 0.0
-
-                m.fit(bounded=True)
-                m.fit_background()
-                m.calibrate_energy_axis(calibrate='resolution')
-
+            elif self.material == '2063a':
+                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka',
+                                'Fe_Ka', 'O_Ka', 'Ar_Ka'])
                 lines_to_get = ['Ar_Ka', 'C_Ka', 'Ca_Ka', 'Ca_Kb', 'Ca_La',
                                 'Cu_Ka', 'Cu_Kb', 'Fe_Ka', 'Fe_Kb', 'Mg_Ka',
                                 'O_Ka', 'Si_Ka']
-                result = m.get_lines_intensity(plot_result=False,
-                                               xray_lines=lines_to_get)
-                if verbose:
-                    print('Results for Peak Fit')
-                    print('**********************')
-                    for i in result:
-                        print('%s: %.2f counts' %
-                              (i.metadata.Sample.xray_lines[0], i.data))
-                    print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
 
-                output = {}
-                for i in range(0, len(result)):
-                    line = result[i].metadata.Sample.xray_lines[0]
-                    if line in lines_to_get:
-                        output[line] = {'counts':
-                                        np.around(result[i].data[0], 2),
-                                        'uncertainty': np.nan}
+                bw = np.array([[2.7, 2.8, 3.1, 3.2],
+                               [0.15, 0.19, 0.8, 0.9],
+                               [3.3, 3.45, 4.2, 4.4],
+                               [5.9, 6.1, 6.65, 6.75],
+                               [0.34, 0.41, 0.8, 0.9],
+                               [1.0, 1.1, 1.35, 1.42],
+                               [0.34, 0.41, 0.8, 0.9],
+                               [1.42, 1.55, 2.0, 2.12]])
 
-            elif method == 'windows':
-                spec.set_elements([])
-                spec.set_lines([])
+            result = spec.\
+                get_lines_intensity(background_windows=bw,
+                                    plot_result=False)
+            if verbose:
+                print('Results for Window Method')
+                print('Material: %s' % self.material)
+                print('**********************')
+                for i in result:
+                    print('%s: %.2f counts' %
+                          (i.metadata.Sample.xray_lines[0], i.data[0]))
+                print('\n')
 
-                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka',
-                                'Fe_Ka', 'O_Ka', 'Ar_Ka'])
-                ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
-                ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
-                fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
-                mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
-                o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
-                si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
-                bw = np.array([ar_ka_bckg,
-                               ca_ka_bckg,
-                               fe_ka_bckg,
-                               mg_ka_bckg,
-                               o_ka_bckg,
-                               si_ka_bckg])
+        elif method == 'model':
+            if self.material == 'NiOx':
+                spec = self.spec.isig[0.4:21.].deepcopy()
+                spec.add_elements(['Fe', 'Ni', 'O', 'Mo', 'Si'])
+                m = spec.create_model(auto_add_lines=False)
+                m.add_family_lines()
+                lines_to_get = ['Fe_Ka', 'O_Ka', 'Ni_Ka',
+                                'Ni_Kb', 'Mo_Ka', 'Mo_La']
 
-                if verbose:
-                    [ar_ka,
-                     ca_ka,
-                     fe_ka,
-                     mg_ka,
-                     o_ka,
-                     si_ka] = spec.get_lines_intensity(background_windows=bw,
-                                                       plot_result=True)
-                else:
-                    [ar_ka,
-                     ca_ka,
-                     fe_ka,
-                     mg_ka,
-                     o_ka,
-                     si_ka] = spec.get_lines_intensity(background_windows=bw,
-                                                       plot_result=False)
+            elif self.material == '2063a':
+                spec = self.spec.isig[:15.0].deepcopy()
+                spec.add_elements(['C', 'Mg', 'Si', 'Ca',
+                                   'Fe', 'O', 'Ar', 'Cu', ])
+                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka', 'Ca_Kb',
+                                'Cu_Ka', 'Cu_Kb', 'Cu_La',
+                                'Fe_Ka', 'Fe_Kb', 'Fe_La',
+                                'O_Ka', 'Ar_Ka'])
+                m = spec.create_model()
+                m.free_xray_lines_width(['O_Ka', 'Fe_Ka'])
+                m.free_xray_lines_energy(['O_Ka', 'Fe_Ka'])
+                lines_to_get = ['Ar_Ka', 'Ca_Ka', 'Ca_Kb',
+                                'Fe_Ka', 'Fe_Kb', 'Mg_Ka',
+                                'O_Ka', 'Si_Ka']
+                for i in m[1:]:
+                    i.A.bmin = 0.0
+            m.fit(bounded=True)
+            m.fit_background()
 
-                output = {'Ar_Ka': {'counts': ar_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'Ca_Ka': {'counts': ca_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'Fe_Ka': {'counts': fe_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'Mg_Ka': {'counts': mg_ka.data[0],
-                                    'uncertainty': np.nan},
-                          'O_Ka': {'counts': o_ka.data[0],
-                                   'uncertainty': np.nan},
-                          'Si_Ka': {'counts': si_ka.data[0],
-                                    'uncertainty': np.nan}}
-        if plot_results:
-            m.plot(True)
-            ax = plt.gca()
-            labels = ['Data', 'Model', 'Background']
-            ax.legend(labels)
-            ax.set_ylim([-300, 1.1 * spec.data.max()])
+            result = m.get_lines_intensity(plot_result=False,
+                                           xray_lines=lines_to_get)
+            if verbose:
+                print('Results for Peak Fit')
+                print('Material: %s' % self.material)
+                print('**********************')
+                for i in result:
+                    print('%s: %.2f counts' %
+                          (i.metadata.Sample.xray_lines[0], i.data))
+
+                print('\nReduced Chi-Sq: %.2f\n' % m.red_chisq.data)
+            if plot_results:
+                m.plot(True)
+                ax = plt.gca()
+                labels = ['Data', 'Model', 'Background']
+                ax.legend(labels)
+                ax.set_ylim([-300, 1.1 * spec.data.max()])
+
+        output = {}
+        for i in range(0, len(result)):
+            line = result[i].metadata.Sample.xray_lines[0]
+            if line in lines_to_get:
+                output[line] = {'counts':
+                                np.around(result[i].data[0], 2),
+                                'uncertainty':
+                                np.nan}
         self.intensities = output
         return
 
