@@ -953,7 +953,7 @@ class QuantSpec:
                 + self.intensities['Ni_Kb']['counts']
 
         elif self.material == '2063a':
-            if self.intensites is None:
+            if self.intensities is None:
                 self.get_intensities()
             if not element:
                 element = 'Fe'
