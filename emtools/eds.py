@@ -583,6 +583,26 @@ class QuantSpec:
             self.composition_by_atom = self.wt_to_at()
             self.molar_mass = self.get_molar_mass()
 
+        elif material.split('_')[0] == 'Pure':
+            element = material.split('_')[1]
+            self.elements = [element, ]
+            self.xray_lines = {element + '_Ka': {'w': np.nan, 'sigma': np.nan}}
+            self.get_xray_line_properties()
+            self.density = hs.material.elements[element]\
+                                      .Physical_properties.density_gcm3
+            self.density_sigma = np.nan
+            if not thickness:
+                self.thickness = None
+            if not thickness_sigma:
+                self.thickness_sigma = np.nan
+            self.composition_by_atom = {element: {'atom_fraction': 1.0,
+                                                  'sigma': np.nan}}
+            self.composition_by_mass = {element: {'mass_fraction': 1.0,
+                                                  'sigma': np.nan}}
+            self.molar_mass = hs.material.elements[element]\
+                                         .General_properties.atomic_weight
+            self.total_atoms_per_gram = self.get_atoms_per_gram()
+
     def get_xray_line_properties(self):
         """
         Retrieves fundamental parameters for each line from database files.
