@@ -114,8 +114,8 @@ def gen_cmap(color, alpha=None, N=256):
     return cmap
 
 
-def merge_channels(im_list, color_list=None, normalization='single',
-                   return_all_channels=False):
+def merge_color_channels(im_list, color_list=None, normalization='single',
+                         return_all_channels=False):
     """
     Merge up to six gray scale images into a color composite.
 
