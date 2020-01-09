@@ -10,99 +10,21 @@ EDS module for EMTools package
 
 from matplotlib import pylab as plt
 import hyperspy.api as hs
-from skimage import measure, filters
 import numpy as np
-import pprint as pp
 import imp
 
-
-def plot_EDS(spec, axis=None, peaklabels=None, line_color='red',
-             energy_range=None, intensity_range=None, horz_offset=None,
-             vert_offset=None, font_size=8):
-    """
-    Plot several EDS spectra.
-
-    Args
-    ----------
-    spec : Hyperspy Signal1D
-        Single EDS spectrum signal
-    axis : Matplotlib axis
-        Axis in which to plot the data.  If None, a new Figure and Axis are
-        created
-    peak_labels : bool or list
-        If True, label the peaks defined in spec.metadata.Sample.xray_lines.
-        If list, the listed peaks are labeled.
-    line_color : string
-        Color for the spectral plots
-    energy_range : tuple
-        Plot is truncated horizonatally to the minimum and maximum value
-    intensity_range : tuple
-        Plot is truncated vertically to the minimum and maximum value
-    horz_offset : float
-        Offset from peak location (in calibrated values) with which to offset
-        the labels in the horizontal direction
-    vert_offset : float
-        Offset from peak location (in calibrated values) with which to offset
-        the labels in the vertical direction
-    font_size : int
-        Fontsize for labels
+datapath = imp.find_module("emtools")[1] + "/data/"
 
 
-    Returns
-    ----------
-    figure : Matplotlib Figure instance
-    axis : Matplotlib Axis instance
+def get_test_spectrum(material='2063a'):
+    allowed_mats = ['2063a', 'niox']
 
-    """
-    if axis is None:
-        figure, axis = plt.subplots(1)
-        out = True
-    else:
-        out = False
-    axis.plot(spec.axes_manager[-1].axis, spec.data, color=line_color)
-    if energy_range:
-        axis.set_xlim(energy_range[0], energy_range[1])
-    if intensity_range:
-        axis.set_ylim(intensity_range[0], intensity_range[1])
-    if peaklabels:
-        if peaklabels is True:
-            peaklabels = spec.metadata.Sample.xray_lines
-        elif type(peaklabels) is list:
-            pass
-        else:
-            raise ValueError("Unknown format for 'peaklabels'. "
-                             "Must be boolean or list")
-            return
-        if vert_offset is None:
-            vert_min, vert_max = axis.get_ylim()
-            vert_offset = 0.05 * vert_max
-        if horz_offset is None:
-            horz_min, horz_max = axis.get_xlim()
-            horz_offset = 0.01 * horz_max
-        for i in range(0, len(peaklabels)):
-            element, line = peaklabels[i].split('_')
-            energy = (hs.material.elements[element]
-                      ['Atomic_properties']
-                      ['Xray_lines']
-                      [line]
-                      ['energy (keV)'])
-            y_pos = spec.isig[energy].data + vert_offset
-            x_pos = energy + horz_offset
-            if y_pos > vert_max:
-                y_pos = vert_max + 0.01 * vert_max
-            if (x_pos < horz_min) or (x_pos > horz_max):
-                pass
-            else:
-                axis.text(x=x_pos,
-                          y=y_pos,
-                          s=peaklabels[i],
-                          rotation=90,
-                          rotation_mode='anchor',
-                          size=font_size)
-    if out:
-        return figure, axis
-    else:
-        return
+    if material.lower() not in allowed_mats:
+        raise ValueError('Unknown material. Must be one of %s.' %
+                         ', '.join(allowed_mats))
+
+    s = hs.load(datapath + 'XEDS_' + material + '.hdf5')
+    return s
 
 
 def get_detector_efficiency(detector_name):
@@ -127,7 +49,6 @@ def get_detector_efficiency(detector_name):
                          "Must be one of the following: "
                          "%s" % (detector_name, ', '.join(detectors)))
 
-    datapath = imp.find_module("emtools")[1] + "/data/"
     detector_efficiency = np.loadtxt(datapath +
                                      detector_name +
                                      '_DetectorEfficiencyCurve.txt')
@@ -136,214 +57,6 @@ def get_detector_efficiency(detector_name):
     detector_efficiency.axes_manager[0].units = 'keV'
     detector_efficiency.axes_manager[0].scale = 0.01
     return detector_efficiency
-
-
-def get_label_images(si, indices=None, plot=False, titles=None):
-    """
-    Segment results of SI decomposition.
-
-    Args
-    ----------
-    si : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
-        SI datacube
-    indices : list
-        If provided, return segmented labels for only those components.
-    plot : boolean
-        If True, display a color figure showing the returned label images.
-        Default is False.
-    titles : list of strings
-        If provided, label the individual images in the displayed figure.  If
-        not provided, images are labeld as Component 0, Component 1, etc.
-
-    Returns
-    ----------
-    labels : list of Hyperspy Signal2D instances
-
-    """
-    if not si.learning_results.decomposition_algorithm:
-        raise ValueError('Decomposition has not been performed.')
-
-    if not indices:
-        indices = np.arange(0, si.learning_results.loadings.shape[1])
-
-    labels = [None] * len(indices)
-    masks = [None] * len(indices)
-    for i in range(0, len(indices)):
-        labels[i] = si.get_decomposition_loadings().inav[indices[i]]
-        thresh = filters.threshold_otsu(labels[i].data)
-        masks[i] = labels[i] > thresh
-        labels[i] = hs.signals.Signal2D(measure.label(masks[i].data))
-        if titles:
-            labels[i].metadata.General.title = titles[i]
-        else:
-            labels[i].metadata.General.title = 'Component %s' % str(indices[i])
-
-    if plot:
-        max_vals = [1 + i.data.max() for i in labels]
-        if not titles:
-            titles = ['Component %s' % str(i)
-                      for i in range(0, len(labels))]
-        hs.plot.plot_images(labels, per_row=2, cmap='nipy_spectral',
-                            vmax=max_vals, label=titles, axes_decor='off',
-                            colorbar=None)
-    return labels
-
-
-def get_masked_intensity(si, label_im, line, bw):
-    """
-    Segment results of SI decomposition.
-
-    Args
-    ----------
-    si : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
-        SI datacube.
-    label_im : Hyperspy Signal2D
-        Segmented image to use as mask. Must have the same navigation
-        dimensions as si.
-    line : str
-        X-ray line for which to extract the masked intensity. Must be in the
-        corrected format (e.g. 'Ni_Ka')
-    bw : list of floats
-        Pre-peak and post-peak windows to use for background fitting.
-
-    Returns
-    ----------
-    intensites : NumPy array
-        Integrated intensity for peak in the masked region
-
-    """
-    si.unfold()
-    masked = si.deepcopy()
-    intensities = [None] * label_im.data.max()
-    for i in range(0, label_im.data.max()):
-        mask = label_im == i + 1
-        mask.unfold()
-        masked.data = (mask.data * si.data.T).T
-        result = masked.get_lines_intensity(xray_lines=[line, ],
-                                            backround_windows=bw)[0]
-        intensities[i] = result.sum().data[0]
-    si.fold()
-    intensities = np.array(intensities)
-    return intensities
-
-
-def get_volumes(label_im, scale):
-    """
-    Estimate volume of labeled region.
-
-    Args
-    ----------
-    label_im : Hyperspy Signal2D
-        Segmented image to use for volume estimation.
-    scale : float
-        Pixel size of the image.
-
-    Returns
-    ----------
-    volumes : NumPy array
-        Estimated volume for each segmented region in label_im
-
-    """
-    volumes = [None] * label_im.data.max()
-    regions = measure.regionprops(label_im.data, coordinates='xy')
-    for i in range(0, len(regions)):
-        h = 1e-9 * scale * regions[i]['minor_axis_length']
-        r = 1e-9 * scale * regions[i]['major_axis_length']
-        volumes[i] = np.pi * r**2 * h
-    volumes = np.array(volumes)
-    return volumes
-
-
-def get_tau_d(label_im, scale, tau):
-    """
-    Determine per dwell time per unit area.
-
-    Args
-    ----------
-    label_im : Hyperspy Signal2D
-        Segmented image to use for volume estimation.
-    scale : float
-        Pixel size of the image.
-    tau : float or int
-        Per pixel dwell time used for data collection in seconds.
-
-    Returns
-    ----------
-    tau_d : NumPy array
-        Dwell time per unit area of the segmented regions.
-
-    """
-    regions = measure.regionprops(label_im.data, coordinates='xy')
-    tau_d = [None] * len(regions)
-    for i in range(0, len(regions)):
-        npix = regions[i]['area']
-        tau_d[i] = tau / (npix * (scale * 1e-9)**2)
-    tau_d = np.array(tau_d)
-    return tau_d
-
-
-def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
-                    i_probe=0.5e-9, tau=200e-3, rho=None):
-    """
-    Calculate the zeta factor for each segmented region.
-
-    Args
-    ----------
-    si : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
-        SI datacube.
-    label_im : Hyperspy Signal2D
-        Segmented image to use as mask. Must have the same navigation
-        dimensions as si.
-    line : str
-        X-ray line for which to extract the masked intensity. Must be in the
-        corrected format (e.g. 'Ni_Ka')
-    bw : list of floats
-        Pre-peak and post-peak windows to use for background fitting.
-    i_probe : float
-        Probe current used for data collection in amps.
-    tau : float
-        Per pixel dwell time in seconds used for data collection.
-    rho : float
-        Density (g/cm^3) of the chosen element.
-
-    Returns
-    ----------
-    counts_per_dose : NumPy array
-        Estimated volume for each segmented region in label_im
-    rho_v : NumPy array
-    fit : NumPy array
-
-    """
-    Ne = 6.242e18               # Electrons per Coulomb
-    results = {}
-
-    """Extract the intensity of the chosen line in each masked reagion from
-    the original SI"""
-    counts = get_masked_intensity(si, label_im, line, bw)
-
-    """Estimate the volume of each region assuming a cylindrical shape"""
-    volumes = get_volumes(label_im, si.axes_manager[0].scale)
-
-    """Calculate the dwell time per unit area for each segmented region"""
-    tau_d = get_tau_d(label_im, si.axes_manager[0].scale, tau)
-
-    """Calculate the counts per electron dose for each volume"""
-    counts_per_electron = counts / (Ne * i_probe * tau_d)
-
-    """Calculate the amount of mass present in each volume"""
-    rho_v = rho * volumes
-
-    """Perform a linear fit to rho_v vs. counts_per_dose"""
-    zeta, b = np.polyfit(np.append(0, counts_per_electron),
-                         np.append(0, rho_v),
-                         1)
-    fit = zeta * counts_per_electron + b
-
-    results['counts'] = counts
-    results['volumes'] = volumes
-    results['tau_d'] = tau_d
-    results['counts_per_electron'] = counts_per_electron
-    return counts_per_electron, rho_v, fit, zeta
 
 
 def calc_zeta_factor(s, element, line, thickness, ip=None, live_time=None,
@@ -642,244 +355,6 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     return results
 
 
-def get_counts_2063a(spec, method='model', energy_range=None, elements=None,
-                     plot_results=False, verbose=False):
-    """
-    Extract peak intensities from spectrum collected from SRM-2063a
-
-    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.34},
-                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.98},
-                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.37},
-                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.88},
-                   'O': {'massfrac': 0.432, 'uncertainty': 1.60},
-                   'Ar': {'massfrac': 0.004, 'uncertainty': False}}
-
-    Args
-    ------
-    spec : Hyperspy EDSSEMSpectrum or EDSTEMSpectrum
-        Spectrum collected from SRM-2063a thin-film glass
-    method : str
-        If 'model', perform model-based peak intensity extraction. If
-        'windows', use the three-window method.
-    energy_range : list
-        Low and high energy cutoff for fitting
-    elements : list
-        Elements to use for fitting.  If None, Mg, Si, Ca, Fe, O, and Ar will
-        be used.
-    plot_results : bool
-        If True, plot the input spectrum along with the residuals.
-    verbose : bool
-        If True, print the results to the terminal
-    """
-    if not energy_range:
-        temp = spec.deepcopy()
-    else:
-        temp = spec.isig[energy_range[0]:energy_range[1]].deepcopy()
-
-    if method == 'model':
-        # warnings.simplefilter(action='ignore', category=FutureWarning)
-        # warnings.simplefilter(action='ignore', category=UserWarning)
-
-        temp.set_elements([])
-        if not elements:
-            temp.add_elements(['C', 'Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar', 'Cu', ])
-        elif type(elements) is str:
-            temp.add_elements([elements, ])
-        elif type(elements) is list:
-            temp.add_elements(elements)
-        else:
-            raise ValueError('Unknown type (%s) for elements.'
-                             'Must be list or string.' %
-                             type(elements))
-
-        m = temp.create_model()
-        m.remove(['Mg_Kb', 'Fe_Lb3', 'Fe_Ln', 'Ca_Ll', 'Ca_Ln', 'Ar_Kb'])
-        m.free_xray_lines_width('all')
-        m.free_sub_xray_lines_weight(['O_Ka', 'Si_Ka', 'Fe_Ka'])
-        m.free_xray_lines_energy(['O_Ka', 'Fe_Ka', 'Si_Ka'])
-        m['Fe_Kb'].sigma.bmin = 0.02
-        m['Fe_Kb'].sigma.bmax = 1
-
-        m.fit(bounded=True)
-        m.fit_background()
-
-        m.calibrate_energy_axis(calibrate='resolution')
-
-        if verbose:
-            print('Results for Peak Fit')
-            print('**********************')
-            result = m.get_lines_intensity(plot_result=True)
-            print('Reduced Chi-Sq: %.2f\n' % m.red_chisq.data)
-        else:
-            result = m.get_lines_intensity(plot_result=False)
-
-        output = {}
-        for i in range(0, len(result)):
-            line = result[i].metadata.Sample.xray_lines[0]
-            if line in ['Ar_Ka', 'Ca_Ka', 'Fe_Ka', 'Mg_Ka', 'O_Ka', 'Si_Ka']:
-                output[line] = {'counts': np.around(result[i].data[0], 2),
-                                'uncertainty': np.nan}
-
-        if plot_results:
-            residuals = temp - m.as_signal()
-
-            m.plot(True)
-            ax = plt.gca()
-            ax.plot(residuals)
-            labels = ['Data', 'Model', 'Background']
-            for i in m[1:]:
-                labels.append(i.name)
-            labels.append('Residual')
-            ax.legend(labels)
-            ax.set_ylim([-300, 1.1 * temp.data.max()])\
-
-    elif method == 'windows':
-        temp.set_elements([])
-        temp.set_lines([])
-
-        temp.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka', 'Fe_Ka', 'O_Ka', 'Ar_Ka'])
-        ar_ka_bckg = [2.66, 2.76, 3.16, 3.26]
-        ca_ka_bckg = [3.37, 3.47, 4.20, 4.31]
-        fe_ka_bckg = [6.00, 6.13, 6.68, 6.81]
-        mg_ka_bckg = [1.03, 1.10, 1.41, 1.48]
-        o_ka_bckg = [0.34, 0.40, 0.79, 0.85]
-        si_ka_bckg = [1.49, 1.57, 1.95, 2.03]
-        bw = np.array([ar_ka_bckg,
-                       ca_ka_bckg,
-                       fe_ka_bckg,
-                       mg_ka_bckg,
-                       o_ka_bckg,
-                       si_ka_bckg])
-
-        if verbose:
-            [ar_ka,
-             ca_ka,
-             fe_ka,
-             mg_ka,
-             o_ka,
-             si_ka] = temp.get_lines_intensity(background_windows=bw,
-                                               plot_result=True)
-        else:
-            [ar_ka,
-             ca_ka,
-             fe_ka,
-             mg_ka,
-             o_ka,
-             si_ka] = temp.get_lines_intensity(background_windows=bw,
-                                               plot_result=False)
-
-        output = {'Ar_Ka': {'counts': ar_ka.data[0], 'uncertainty': np.nan},
-                  'Ca_Ka': {'counts': ca_ka.data[0], 'uncertainty': np.nan},
-                  'Fe_Ka': {'counts': fe_ka.data[0], 'uncertainty': np.nan},
-                  'Mg_Ka': {'counts': mg_ka.data[0], 'uncertainty': np.nan},
-                  'O_Ka': {'counts': o_ka.data[0], 'uncertainty': np.nan},
-                  'Si_Ka': {'counts': si_ka.data[0], 'uncertainty': np.nan}}
-
-    return output
-
-
-def calc_zeta_factor_2063a(results, i_probe, live_time, tilt=0,
-                           plot_result=False, verbose=False):
-    """
-    Calculate Zeta factor from a spectrum collected from 2063a SRM
-
-    Args
-    ------
-    results : Dict
-        Peak intensities extracted from 2063a spectrum
-    i_probe : float
-        Probe current in nA
-    live_time : float or int
-        Live time of spectrum collection
-    tilt : float or int
-        Specimen tilt in degrees
-    plot_result : bool
-        If True, plot calculated Zeta factors as a function of X-ray energy.
-    verbose : bool
-        If True, print the results to the terminal
-    """
-    composition = {'Mg': {'massfrac': 0.0797, 'uncertainty': 0.0034},
-                   'Si': {'massfrac': 0.2534, 'uncertainty': 0.0098},
-                   'Ca': {'massfrac': 0.1182, 'uncertainty': 0.0037},
-                   'Fe': {'massfrac': 0.1106, 'uncertainty': 0.0088},
-                   'O': {'massfrac': 0.432, 'uncertainty': 0.0160},
-                   'Ar': {'massfrac': 0.004, 'uncertainty': False}}
-
-    rho = 3100
-    rho_sigma = 300
-    thickness = 76e-9 / np.cos(tilt * np.pi / 180)
-    thickness_sigma = 4e-9
-    dose = i_probe * live_time * 6.242e18
-
-    zeta_mg = rho * thickness * composition['Mg']['massfrac'] * \
-        dose / results['Mg_Ka']['counts']
-    zeta_mg_sigma = np.sqrt((composition['Mg']['uncertainty'] /
-                             composition['Mg']['massfrac'])**2 +
-                            (2 * np.sqrt(results['Mg_Ka']['counts']) /
-                             results['Mg_Ka']['counts'])**2 +
-                            (thickness_sigma / thickness)**2 +
-                            (rho_sigma / rho)**2) * zeta_mg
-
-    zeta_si = rho * thickness * composition['Si']['massfrac'] * \
-        dose / results['Si_Ka']['counts']
-    zeta_si_sigma = np.sqrt((composition['Si']['uncertainty'] /
-                             composition['Si']['massfrac'])**2 +
-                            (2 * np.sqrt(results['Si_Ka']['counts']) /
-                             results['Si_Ka']['counts'])**2 +
-                            (thickness_sigma / thickness)**2 +
-                            (rho_sigma / rho)**2) * zeta_si
-
-    zeta_ca = rho * thickness * composition['Ca']['massfrac'] * \
-        dose / results['Ca_Ka']['counts']
-    zeta_ca_sigma = np.sqrt((composition['Ca']['uncertainty'] /
-                             composition['Ca']['massfrac'])**2 +
-                            (2 * np.sqrt(results['Ca_Ka']['counts']) /
-                             results['Ca_Ka']['counts'])**2 +
-                            (thickness_sigma / thickness)**2 +
-                            (rho_sigma / rho)**2) * zeta_ca
-
-    zeta_fe = rho * thickness * composition['Fe']['massfrac'] * \
-        dose / results['Fe_Ka']['counts']
-    zeta_fe_sigma = np.sqrt((composition['Fe']['uncertainty'] /
-                             composition['Fe']['massfrac'])**2 +
-                            (2 * np.sqrt(results['Fe_Ka']['counts']) /
-                             results['Fe_Ka']['counts'])**2 +
-                            (thickness_sigma / thickness)**2 +
-                            (rho_sigma / rho)**2) * zeta_fe
-
-    zeta_o = rho * thickness * composition['O']['massfrac'] * \
-        dose / results['O_Ka']['counts']
-    zeta_o_sigma = np.sqrt((composition['O']['uncertainty'] /
-                            composition['O']['massfrac'])**2 +
-                           (2 * np.sqrt(results['O_Ka']['counts']) /
-                            results['O_Ka']['counts'])**2 +
-                           (thickness_sigma / thickness)**2 +
-                           (rho_sigma / rho)**2) * zeta_o
-
-    if plot_result:
-        xray_energies = [hs.material.elements[i].Atomic_properties.
-                         Xray_lines['Ka']['energy_keV'] for i in
-                         ['Mg', 'Si', 'Ca', 'Fe', 'O']]
-        plt.figure()
-        plt.scatter(xray_energies, [zeta_mg, zeta_si, zeta_ca,
-                                    zeta_fe, zeta_o])
-
-    zeta_factors = {'Mg_Ka': {'zeta_factor': np.round(zeta_mg, 2),
-                              'zeta_factor_sigma': np.round(zeta_mg_sigma, 2)},
-                    'Si_Ka': {'zeta_factor': np.round(zeta_si, 2),
-                              'zeta_factor_sigma': np.round(zeta_si_sigma, 2)},
-                    'Ca_Ka': {'zeta_factor': np.round(zeta_ca, 2),
-                              'zeta_factor_sigma': np.round(zeta_ca_sigma, 2)},
-                    'Fe_Ka': {'zeta_factor': np.round(zeta_fe, 2),
-                              'zeta_factor_sigma': np.round(zeta_fe_sigma, 2)},
-                    'O_Ka': {'zeta_factor': np.round(zeta_o, 2),
-                             'zeta_factor_sigma': np.round(zeta_o_sigma, 2)}
-                    }
-    if verbose:
-        pp.pprint(zeta_factors)
-    return zeta_factors
-
-
 def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
                           energy_resolution=135, energy_per_channel=0.01,
                           background=False, noise=False, beam_energy=300):
@@ -914,7 +389,6 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
     s.axes_manager[0].units = 'keV'
     s.axes_manager[0].offset = 0
     s.set_microscope_parameters(beam_energy=300)
-    #                             energy_resolution_MnKa=120)
     s.metadata.General.original_filename = \
         ('%s EDS Simluation.msa' % str(elements))
     s.add_elements(elements)
@@ -948,71 +422,7 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
     return s
 
 
-def calc_solid_angle(material, xray_line, counts, thickness,
-                     beam_energy, probe_current, live_time, tilt=0,
-                     verbose=False):
-    """
-    Calcualte the solid angle of a detectr from measured spectrum
-
-    Args
-    ------
-    material : str
-        Material from which the spectrum was collected.  Must be either 'NiOx'
-        or '2063a'
-    xray_line : str
-        X-ray line to use for the calculation
-    counts : int
-        Number of X-ray counts detected for the chosen line
-    thickness : float
-        Thickness of the specimen in nanometers analyzed
-    beam_energy : float
-        Energy of the electrons in keV used to collect the spectrum
-    probe_current : float
-        Probe current in nA used to generat the spectrum
-    live_time : float
-        Spectrum acquisition live time in seconds
-    tilt : float
-        Specimen tilt in degrees
-    vebose : bool
-        If True, print parameters and calculated results to the terminal
-    """
-
-    element, line = xray_line.split('_')
-    xray_energy = hs.material.elements[element]\
-                             .Atomic_properties\
-                             .Xray_lines[line]\
-                             .energy_keV
-    eff_thickness = thickness / np.cos(np.pi * tilt / 180)
-    mat = Material(material, beam_energy)
-    w = mat.xray_lines[xray_line]['w']
-    sigma = mat.xray_lines[xray_line]['sigma'] * 1e4
-    N_atoms = mat.get_atoms_per_volume(element) *\
-        (eff_thickness * 1e-7)
-    Ne = probe_current * 1e-9 * live_time / 1.6e-19
-    nu = counts / (N_atoms * sigma * w * Ne)
-    omega = 4 * np.pi * nu
-    omega = np.round(omega, 3)
-
-    if verbose:
-        print('Detector Solid-angle Calculation')
-        print('*************************************')
-        print('Beam energy (keV): %s' % str(beam_energy))
-        print('Probe current (nA): %s' % str(probe_current))
-        print('Live time (s): %s' % str(live_time))
-        print('Electron dose: %.2e' % Ne)
-        print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
-        print('X-ray line: %s @ %.2f keV' % (xray_line, xray_energy))
-        print('Counts detected: %s' % str(counts))
-        print('Ionization Cross-section (cm^2): %.2e' % sigma)
-        print('Fluorescence Yield: %.3f' % w)
-        print('Atoms per Unit Area (cm^-2): %.2e\n' % N_atoms)
-        print('Collection Efficiency: %.2f %%' % (100 * nu))
-        print('Collection Solid-angle (srs): %.3f' % omega)
-
-    return omega
-
-
-class Material:
+class QuantSpec:
     """
     Class to create materials with provided composition
 
@@ -1043,14 +453,15 @@ class Material:
         Number density of atoms per gram of the material
 
     """
-    def __init__(self, name, beam_energy=300, thickness=None,
-                 thickness_sigma=None):
+    def __init__(self, spec, material, beam_energy=None, thickness=None,
+                 thickness_sigma=None, live_time=None, probe_current=None,
+                 specimen_tilt=None):
         """
         Constructor for Material class.
 
         Args
         -----
-        name : str
+        material : str
             Identity of the material.  Acceptable materials are 'NiOx' and
             '2063a'
         beam_energy : float
@@ -1061,16 +472,15 @@ class Material:
         thickness_sigma : float
             Uncertainty in specimen thickness in nanometers
         """
-        mats = ['NiOx', '2063a']
+        known_materials = ['NiOx', '2063a']
 
-        if name in mats:
+        if material in known_materials:
             pass
         else:
             raise ValueError("Unknown material %s. "
                              "Must be one of the following: "
-                             "%s" % (name, ', '.join(mats)))
-        self.name = name
-        self.beam_energy = beam_energy
+                             "%s" % (material, ', '.join(known_materials)))
+        self.material = material
         self.xray_lines = None
         self.elements = None
         self.density = None
@@ -1079,8 +489,51 @@ class Material:
         self.composition_by_mass = None
         self.molar_mass = None
         self.total_atoms_per_gram = None
+        self.spec = spec
+        self.thickness = thickness
+        self.thickness_sigma = thickness_sigma
+        self.intensities = None
 
-        if name == 'NiOx':
+        if specimen_tilt:
+            self.specimen_tilt = specimen_tilt
+        elif spec.metadata.Acquisition_instrument.TEM.Stage.tilt_alpha:
+            self.specimen_tilt = \
+                spec.metadata.Acquisition_instrument.TEM.Stage.tilt_alpha
+        else:
+            raise ValueError('Specimen tilt is not defined')
+        if live_time:
+            self.live_time = live_time
+        elif spec.metadata.Acquisition_instrument\
+                          .TEM.Detector.EDS.live_time > 0:
+            self.live_time = \
+                spec.metadata.Acquisition_instrument\
+                             .TEM.Detector.EDS.live_time
+        else:
+            raise ValueError('Spectrum acquisition time is not defined')
+
+        if probe_current:
+            self.probe_current = probe_current
+        elif spec.metadata.Acquisition_instrument.TEM.beam_current > 0:
+            self.probe_current = spec.metadata\
+                                     .Acquisition_instrument\
+                                     .TEM.beam_current
+        else:
+            raise ValueError('Probe current is not defined')
+
+        if beam_energy:
+            self.beam_energy = beam_energy
+        elif 'beam_energy' in spec.metadata\
+                                  .Acquisition_instrument['TEM']\
+                                  .keys():
+            self.beam_energy = spec.metadata\
+                                   .Acquisition_instrument['TEM']\
+                                   .beam_energy
+        else:
+            raise ValueError('Beam energy is not defined')
+
+        self.electron_dose = (self.probe_current * 1e-9
+                              * self.live_time / 1.6e-19)
+        if material == 'NiOx':
             self.elements = ['Ni', 'O']
             self.xray_lines = {'Ni_Ka': {'w': np.nan, 'sigma': np.nan},
                                'O_Ka': {'w': np.nan, 'sigma': np.nan}}
@@ -1090,7 +543,7 @@ class Material:
             if not thickness:
                 self.thickness = 59
             if not thickness_sigma:
-                self.thickness_sigma = 4
+                self.thickness_sigma = 5
             self.composition_by_atom = {'Ni': {'atom_fraction': 0.5,
                                                'sigma': np.nan},
                                         'O': {'atom_fraction': 0.5,
@@ -1099,7 +552,7 @@ class Material:
             self.composition_by_mass = self.at_to_wt()
             self.total_atoms_per_gram = self.get_atoms_per_gram()
 
-        elif name == '2063a':
+        elif material == '2063a':
             self.elements = ['Mg', 'Si', 'Ca', 'Fe', 'O', 'Ar']
             self.xray_lines = {'Mg_Ka': {'w': np.nan, 'sigma': np.nan},
                                'Si_Ka': {'w': np.nan, 'sigma': np.nan},
@@ -1130,6 +583,26 @@ class Material:
             self.composition_by_atom = self.wt_to_at()
             self.molar_mass = self.get_molar_mass()
 
+        elif material.split('_')[0] == 'Pure':
+            element = material.split('_')[1]
+            self.elements = [element, ]
+            self.xray_lines = {element + '_Ka': {'w': np.nan, 'sigma': np.nan}}
+            self.get_xray_line_properties()
+            self.density = hs.material.elements[element]\
+                                      .Physical_properties.density_gcm3
+            self.density_sigma = np.nan
+            if not thickness:
+                self.thickness = None
+            if not thickness_sigma:
+                self.thickness_sigma = np.nan
+            self.composition_by_atom = {element: {'atom_fraction': 1.0,
+                                                  'sigma': np.nan}}
+            self.composition_by_mass = {element: {'mass_fraction': 1.0,
+                                                  'sigma': np.nan}}
+            self.molar_mass = hs.material.elements[element]\
+                                         .General_properties.atomic_weight
+            self.total_atoms_per_gram = self.get_atoms_per_gram()
+
     def get_xray_line_properties(self):
         """
         Retrieves fundamental parameters for each line from database files.
@@ -1153,7 +626,6 @@ class Material:
         """
         if not self.xray_lines:
             raise ValueError('No X-ray lines defined!')
-        datapath = imp.find_module("emtools")[1] + "/data/"
         w = np.loadtxt(datapath + 'FluorescenceYield.txt')
         sigma = np.loadtxt(datapath +
                            "AbsoluteIonizationCrossSection" +
@@ -1222,7 +694,8 @@ class Material:
                                  .General_properties
                                  .atomic_weight)
             mass_fraction = mass / self.molar_mass
-            composition_by_mass[i] = {'mass_fraction': mass_fraction}
+            composition_by_mass[i] = {'mass_fraction': mass_fraction,
+                                      'sigma': np.nan}
         return composition_by_mass
 
     def get_atoms_per_volume(self, element):
@@ -1238,3 +711,294 @@ class Material:
                             * mass_frac / atomic_weight
                             * self.density)
         return atoms_per_volume
+
+    def get_intensities(self, method='model', verbose=False,
+                        plot_results=False):
+        spec = self.spec.deepcopy()
+        spec.set_elements([])
+        spec.set_lines([])
+
+        if method == 'windows':
+            if self.material == 'NiOx':
+                spec.add_elements(['Fe', 'Ni', 'O', 'Mo', 'Si'])
+                spec.add_lines(['Fe_Ka', 'Ni_Ka', 'Ni_Kb',
+                                'Mo_Ka', 'O_Ka', 'Si_Ka',
+                                'Mo_La', 'Ni_La'])
+                lines_to_get = ['Fe_Ka', 'O_Ka', 'Ni_Ka',
+                                'Ni_Kb', 'Mo_Ka', 'Mo_La']
+                bw = np.array([[6.1, 6.2, 8.6, 8.7],
+                               [16.9, 17.1, 17.9, 18.0],
+                               [2.1, 2.2, 2.5, 2.6],
+                               [6.1, 6.2, 8.6, 8.7],
+                               [6.1, 6.2, 8.6, 8.7],
+                               [0.6, 0.7, 1.0, 1.1],
+                               [0.1, 0.2, 0.6, 0.7],
+                               [1.5, 1.6, 1.9, 2.0]])
+
+            elif self.material == '2063a':
+                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka',
+                                'Fe_Ka', 'O_Ka', 'Ar_Ka'])
+                lines_to_get = ['Ar_Ka', 'C_Ka', 'Ca_Ka', 'Ca_Kb', 'Ca_La',
+                                'Cu_Ka', 'Cu_Kb', 'Fe_Ka', 'Fe_Kb', 'Mg_Ka',
+                                'O_Ka', 'Si_Ka']
+
+                bw = np.array([[2.7, 2.8, 3.1, 3.2],
+                               [0.15, 0.19, 0.8, 0.9],
+                               [3.3, 3.45, 4.2, 4.4],
+                               [5.9, 6.1, 6.65, 6.75],
+                               [0.34, 0.41, 0.8, 0.9],
+                               [1.0, 1.1, 1.35, 1.42],
+                               [0.34, 0.41, 0.8, 0.9],
+                               [1.42, 1.55, 2.0, 2.12]])
+
+            result = spec.\
+                get_lines_intensity(background_windows=bw,
+                                    plot_result=False)
+            if verbose:
+                print('Results for Window Method')
+                print('Material: %s' % self.material)
+                print('**********************')
+                for i in result:
+                    print('%s: %.2f counts' %
+                          (i.metadata.Sample.xray_lines[0], i.data[0]))
+                print('\n')
+
+        elif method == 'model':
+            if self.material == 'NiOx':
+                spec = self.spec.isig[0.4:21.].deepcopy()
+                spec.add_elements(['Fe', 'Ni', 'O', 'Mo', 'Si'])
+                m = spec.create_model(auto_add_lines=False)
+                m.add_family_lines()
+                lines_to_get = ['Fe_Ka', 'O_Ka', 'Ni_Ka',
+                                'Ni_Kb', 'Mo_Ka', 'Mo_La']
+
+            elif self.material == '2063a':
+                spec = self.spec.isig[:15.0].deepcopy()
+                spec.add_elements(['C', 'Mg', 'Si', 'Ca',
+                                   'Fe', 'O', 'Ar', 'Cu', ])
+                spec.add_lines(['Mg_Ka', 'Si_Ka', 'Ca_Ka', 'Ca_Kb',
+                                'Cu_Ka', 'Cu_Kb', 'Cu_La',
+                                'Fe_Ka', 'Fe_Kb', 'Fe_La',
+                                'O_Ka', 'Ar_Ka'])
+                m = spec.create_model()
+                m.free_xray_lines_width(['O_Ka', 'Fe_Ka'])
+                m.free_xray_lines_energy(['O_Ka', 'Fe_Ka'])
+                lines_to_get = ['Ar_Ka', 'Ca_Ka', 'Ca_Kb',
+                                'Fe_Ka', 'Fe_Kb', 'Mg_Ka',
+                                'O_Ka', 'Si_Ka']
+                for i in m[1:]:
+                    i.A.bmin = 0.0
+            m.fit(bounded=True)
+            m.fit_background()
+
+            result = m.get_lines_intensity(plot_result=False,
+                                           xray_lines=lines_to_get)
+            if verbose:
+                print('Results for Peak Fit')
+                print('Material: %s' % self.material)
+                print('**********************')
+                for i in result:
+                    print('%s: %.2f counts' %
+                          (i.metadata.Sample.xray_lines[0], i.data))
+
+                print('\nReduced Chi-Sq: %.2f\n' % m.red_chisq.data)
+            if plot_results:
+                m.plot(True)
+                ax = plt.gca()
+                labels = ['Data', 'Model', 'Background']
+                ax.legend(labels)
+                ax.set_ylim([-300, 1.1 * spec.data.max()])
+
+        output = {}
+        for i in range(0, len(result)):
+            line = result[i].metadata.Sample.xray_lines[0]
+            if line in lines_to_get:
+                output[line] = {'counts':
+                                np.around(result[i].data[0], 2),
+                                'uncertainty':
+                                np.nan}
+        self.intensities = output
+        return
+
+    def get_detector_characteristics(self, element=None, display=True,
+                                     verbose=False):
+        """
+        Calculate detector characteristics from a spectrum of a known material.
+
+        Args
+        ----------
+        spec : Hyperspy Signal1D, EDSSemSpectrum, or EDSTEMSpectrum
+            XEDS spectrum collected from standard material.
+        material : str
+            Name of the standard material.  Must be either 'NiOx' or 2063a
+        thickness : float or int
+            Nominal thickness of standard material in nanometers.
+            Default is 59 nm.
+        live_time : float or int
+            Spectrum acquisition time in seconds. Default is 200 seconds.
+        tilt : float or int
+            Specimen tilt in degrees.  Default is 0 degrees.
+        thickness_error : float
+            Error in nominal thickness measurement (+/- nanometers)
+        probe_current : float
+            Probe current in nanoamps. Default is 0.3 nA.
+        display : bool
+            If True, print the results to the terminal.
+
+        Returns
+        ----------
+        results : Dict
+            Dictionary containing all measured and calculated values.
+
+        """
+        if not self.thickness:
+            raise ValueError('Specimen thickness not defined')
+
+        if not self.probe_current:
+            raise ValueError('Probe current is not defined')
+
+        if not self.beam_energy:
+            raise ValueError('Beam energy is not defined')
+
+        if self.material == 'NiOx':
+            element = 'Ni'
+            xray_lines = ['Ni_Ka', 'Ni_Kb']
+            lines = ['Ka', 'Kb']
+            if self.intensities is None:
+                self.get_intensities()
+            counts = self.intensities['Ni_Ka']['counts']\
+                + self.intensities['Ni_Kb']['counts']
+
+        elif self.material == '2063a':
+            if self.intensities is None:
+                self.get_intensities()
+            if not element:
+                element = 'Fe'
+            if element == 'Fe':
+                xray_lines = ['Fe_Ka', 'Fe_Kb']
+                lines = ['Ka', 'Kb']
+                counts = self.intensities['Fe_Ka']['counts']\
+                    + self.intensities['Fe_Kb']['counts']
+            elif element == 'Si':
+                xray_lines = ['Si_Ka', ]
+                lines = ['Ka', ]
+                counts = self.intensities['Si_Ka']['counts']
+        else:
+            raise ValueError('Unknown material')
+        xray_energies = [None] * len(xray_lines)
+        for i in range(0, len(xray_lines)):
+            xray_energies[i] = hs.material.elements[element]\
+                                 .Atomic_properties\
+                                 .Xray_lines[lines[i]]\
+                                 .energy_keV
+        eff_thickness = self.thickness / np.cos(np.pi
+                                                * self.specimen_tilt
+                                                / 180)
+        w = self.xray_lines[xray_lines[0]]['w']
+        sigma = self.xray_lines[xray_lines[0]]['sigma'] * 1e4
+        N_atoms = self.get_atoms_per_volume(element) *\
+            (eff_thickness * 1e-7)
+        nu = counts / (N_atoms * sigma * w * self.electron_dose)
+        omega = 4 * np.pi * nu
+        omega = np.round(omega, 3)
+
+        if verbose:
+            print('Detector Solid-angle Calculation')
+            print('*************************************')
+            print('Beam energy (keV): %s' % str(self.beam_energy))
+            print('Probe current (nA): %s' % str(self.probe_current))
+            print('Live time (s): %s' % str(self.live_time))
+            print('Electron dose: %.2e' % self.electron_dose)
+            print('Nominal sample thickness (nm): %.1f' % self.thickness)
+            print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
+            for i in range(0, len(xray_lines)):
+                print('X-ray line: %s @ %.2f keV' %
+                      (xray_lines[i], xray_energies[0]))
+            print('Counts detected: %s' % str(np.round(counts)))
+            print('Ionization Cross-section (cm^2): %.2e' % sigma)
+            print('Fluorescence Yield: %.3f' % w)
+            print('Atoms per Unit Area (cm^-2): %.2e\n' % N_atoms)
+            print('Collection Efficiency: %.2f %%' % (100 * nu))
+            print('Collection Solid-angle (srs): %.3f' % omega)
+
+        return omega
+
+    def calc_zeta_factor(self, plot_result=False, verbose=False):
+        """
+        Calculate Zeta factor from a spectrum collected from 2063a SRM
+
+        Args
+        ------
+        plot_result : bool
+            If True, plot calculated Zeta factors as a function of
+            X-ray energy.
+        verbose : bool
+            If True, print the results to the terminal
+        """
+        if self.intensities is None:
+            self.get_intensities()
+
+        rho = self.density * 1000
+        rho_sigma = self.density_sigma * 1000
+        eff_thickness = self.thickness\
+            / np.cos(self.specimen_tilt * np.pi / 180)
+        thickness_sigma = self.thickness_sigma
+        dose = self.electron_dose
+
+        if self.material == '2063a':
+            elements = ['Mg', 'Si', 'Ca', 'Fe', 'O']
+
+        elif self.material == 'NiOx':
+            elements = ['Ni', 'O']
+
+        lines = [i + '_Ka' for i in elements]
+
+        zeta_factor_results = {}
+        for i in range(len(elements)):
+            mass_fraction = (self.composition_by_mass[elements[i]]
+                             ['mass_fraction'])
+            uncertainty = self.composition_by_mass[elements[i]]['sigma']
+            counts = self.intensities[lines[i]]['counts']
+            zeta = rho * eff_thickness * 1e-9 * mass_fraction * dose / counts
+
+            zeta_sigma = np.sqrt((uncertainty / mass_fraction)**2
+                                 + (2 * np.sqrt(counts) / counts)**2
+                                 + (thickness_sigma / eff_thickness)**2
+                                 + (rho_sigma / rho)**2) * zeta
+
+            zeta_factor_results[lines[i]] = {'zeta_factor': zeta,
+                                             'zeta_factor_sigma':
+                                                 np.round(zeta_sigma, 2)}
+
+        xray_energies = [hs.material.elements[i].Atomic_properties.
+                         Xray_lines['Ka']['energy_keV'] for i in
+                         elements]
+
+        if verbose:
+            print('Zeta Factor Analysis Results')
+            print('Material: %s' % self.material)
+            print('*************************************')
+            print('Beam energy (keV): %s' % str(self.beam_energy))
+            print('Probe current (nA): %s' % str(self.probe_current))
+            print('Live time (s): %s' % str(self.live_time))
+            print('Electron dose: %.2e' % self.electron_dose)
+            print('Nominal sample thickness (nm): %.1f' % self.thickness)
+            print('Effective sample thickness (nm): %.1f\n' % eff_thickness)
+            count = 0
+            for i in zeta_factor_results:
+                print('%s (%.2f keV): %.2f +/- %.2f' %
+                      (i, xray_energies[count],
+                       zeta_factor_results[i]['zeta_factor'],
+                       zeta_factor_results[i]['zeta_factor_sigma']))
+                count += 1
+
+        if plot_result:
+            plt.figure()
+            plt.scatter(xray_energies,
+                        [zeta_factor_results[i]['zeta_factor']
+                         for i in zeta_factor_results])
+            plt.xlabel('X-ray Energy (keV)')
+            plt.ylabel(r'$\zeta$ factor (kg-electron/(m$^{2}$-photon))')
+
+        self.zeta_factors = zeta_factor_results
+        return
