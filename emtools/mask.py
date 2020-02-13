@@ -41,7 +41,7 @@ def get_mask(s, r, r_outer=None, type='circular'):
     return mask
 
 
-def display_masks(im, masks, alpha=0.2, log=False):
+def display_masks(im, masks, mask_alpha=0.5, log=True, im_min=8, im_max=11):
     """
     Overlay mask on image for visualization.
 
@@ -51,23 +51,25 @@ def display_masks(im, masks, alpha=0.2, log=False):
         Image or pattern to display
     masks : list
         Iterable of masks to overlay on image or pattern
-    alpha : float
+    mask_alpha : float
         Degree of transparency of the masks.  Must be between 0.0 and 1.0
     log : bool
         If True, display image on a log scale (useful for diffraction patterns)
+    im_min : float
+        Minimum value for image display
+    im_max : float
+        Maximum value for image display
 
     Returns
     ----------
 
     """
-    colors = ['Reds', 'Greens', 'Blues', 'Purples', 'Oranges']
+    nmasks = len(masks)
+    levels = np.linspace(2, 9, nmasks)
+    total = np.zeros(masks[0].shape)
+    for i in range(0, len(masks)):
+        total += levels[i] * masks[i]
     plt.figure()
-    if log:
-        plt.imshow(np.log(im.data + 1))
-    else:
-        plt.imshow(im.data)
-    idx = 0
-    for i in masks:
-        plt.imshow(i, alpha=alpha, cmap=colors[idx])
-        idx += 1
+    plt.imshow(np.log(im + 1), vmin=im_min, vmax=im_max)
+    plt.imshow(total, cmap='nipy_spectral', vmin=0, vmax=10, alpha=mask_alpha)
     return
