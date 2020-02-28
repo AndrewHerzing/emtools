@@ -13,7 +13,7 @@ import numpy as np
 from skimage import filters, measure
 from scipy import ndimage
 from scipy.stats.mstats import gmean
-from astropy.stats import bootstrap
+# from astropy.stats import bootstrap
 
 
 def remove_particles(segmentation):
@@ -183,50 +183,50 @@ def get_props(s, thresh=None, border=5):
     return results
 
 
-def bootstrap_analysis(results, props):
-    """
-    Perform a bootstrap statistical analysis of particle size measurements.
+# def bootstrap_analysis(results, props):
+#     """
+#     Perform a bootstrap statistical analysis of particle size measurements.
 
-    Args
-    ----------
-    results : dict
-        Result of particle size analysis performed using the `get_props`
-        function.
-    props : str or list of str
-        Properties on which to perform the bootstrap analysis.  Must be
-        'diameters', 'max_ferets', and/or 'min_ferets'.
+#     Args
+#     ----------
+#     results : dict
+#         Result of particle size analysis performed using the `get_props`
+#         function.
+#     props : str or list of str
+#         Properties on which to perform the bootstrap analysis.  Must be
+#         'diameters', 'max_ferets', and/or 'min_ferets'.
 
-    Returns
-    ----------
-    outptu : dict
-        Dictionary containing the results of the bootstrap analysis.
+#     Returns
+#     ----------
+#     outptu : dict
+#         Dictionary containing the results of the bootstrap analysis.
 
-    """
-    def test_statistic(x):
-        return np.mean(x), np.median(x)
+#     """
+#     def test_statistic(x):
+#         return np.mean(x), np.median(x)
 
-    data = {}
-    output = {}
+#     data = {}
+#     output = {}
 
-    if type(results) is list:
-        if type(props) is list:
-            for j in props:
-                data[j] = np.concatenate([i[j] for i in results])
-        else:
-            data[props] = np.concatenate([i[props] for i in results])
-    elif type(results) is dict:
-        if type(props) is list:
-            for j in props:
-                data[j] = results[j]
-        else:
-            data[props] = results[props]
+#     if type(results) is list:
+#         if type(props) is list:
+#             for j in props:
+#                 data[j] = np.concatenate([i[j] for i in results])
+#         else:
+#             data[props] = np.concatenate([i[props] for i in results])
+#     elif type(results) is dict:
+#         if type(props) is list:
+#             for j in props:
+#                 data[j] = results[j]
+#         else:
+#             data[props] = results[props]
 
-    for i in data.keys():
-        output[i + "_bootstrap"] = {}
-        result = bootstrap(data[i], 1000, bootfunc=test_statistic)
-        output[i + "_bootstrap"]['Mean95'] = 2 * np.std(result[:, 0])
-        output[i + "_bootstrap"]['Median95'] = 2 * np.std(result[:, 1])
-    return output
+#     for i in data.keys():
+#         output[i + "_bootstrap"] = {}
+#         result = bootstrap(data[i], 1000, bootfunc=test_statistic)
+#         output[i + "_bootstrap"]['Mean95'] = 2 * np.std(result[:, 0])
+#         output[i + "_bootstrap"]['Median95'] = 2 * np.std(result[:, 1])
+#     return output
 
 
 def get_geometric_stats(data, verbose=False):
