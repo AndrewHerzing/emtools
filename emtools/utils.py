@@ -83,11 +83,11 @@ def calc_rutherford_energy_loss(energy, element, theta, relativistic=False):
     Args
     ----------
     energy : float
-        Incident electron energy (in keV)
+        Incident electron energy in keV
     element : string
         Elemental symbol of scattering nucleus
     theta : float or array
-        Scattering angle (in mrads)
+        Scattering angle in degrees
     relativistic : bool
         If True, apply relativistic correction to electron mass
 
@@ -97,6 +97,7 @@ def calc_rutherford_energy_loss(energy, element, theta, relativistic=False):
         Energy lost due to scattering to angle theta (in eV)
     """
 
+    theta = 1000 * theta * np.pi / 180
     atom_mass = get_atom_mass(element)
     if relativistic:
         me = get_relativistic_mass(energy)
@@ -119,11 +120,11 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
     Args
     ----------
     energy : float
-        Incident electron energy (in keV)
+        Incident electron energy in keV
     element : string
         Elemental symbol of scattering nucleus
     theta : float or array
-        Scattering angle (in mrads)
+        Scattering angle in degrees
     relativistic : bool
         If True, apply relativistic correction to electron mass
 
@@ -133,6 +134,7 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
         Energy lost due to scattering to angle theta (in eV)
     """
 
+    theta = 1000 * theta * np.pi / 180
     atom_mass = get_atom_mass(element)
     if relativistic:
         me = get_relativistic_mass(energy)
