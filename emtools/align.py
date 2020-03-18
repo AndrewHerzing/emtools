@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from scipy import ndimage
 import tqdm
+import copy
 
 
 def align_stack(stack, method, start, show_progressbar):
@@ -56,7 +57,7 @@ def align_stack(stack, method, start, show_progressbar):
             composed[i, :] = composed[i + 1, :] + shifts[i]
         return composed
 
-    def calculate_shifts(stack, method, start, show_progressbar, nslice):
+    def calculate_shifts(stack, method, start, show_progressbar):
         shifts = np.zeros([stack.data.shape[0] - 1, 2])
         if start is None:
             start = np.int32(np.floor(stack.data.shape[0] / 2))
@@ -128,4 +129,31 @@ def align_stack(stack, method, start, show_progressbar):
     shifts = calculate_shifts(stack, method, start, show_progressbar)
     composed = compose_shifts(shifts, start)
     aligned = apply_shifts(stack, composed)
-    return aligned
+    return aligned, composed
+
+
+def align_to_other(stack, other, shifts, verbose):
+    """
+    Spatially register a TomoStack using previously calculated shifts.
+
+    Args
+    ----------
+    stack : TomoStack object
+        TomoStack which was previously aligned
+    other : TomoStack object
+        TomoStack to be aligned. Must be the same size as the primary stack
+
+    Returns
+    ----------
+    out : TomoStack object
+        Aligned copy of other TomoStack
+
+    """
+    out = copy.deepcopy(other)
+
+    for i in range(0, out.data.shape[0]):
+        out.data[i, :, :] =\
+            ndimage.shift(out.data[i, :, :],
+                          shift=[shifts[i, 1], shifts[i, 0]],
+                          order=0)
+    return out
