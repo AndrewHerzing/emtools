@@ -132,7 +132,7 @@ def align_stack(stack, method, start, show_progressbar):
     return aligned, composed
 
 
-def align_to_other(stack, other, shifts, verbose):
+def align_to_other(other, shifts):
     """
     Spatially register a TomoStack using previously calculated shifts.
 
