@@ -4,6 +4,7 @@ from scipy import ndimage
 import tqdm
 import copy
 import hyperspy.api as hs
+from pystackreg import StackReg
 
 
 def align_stack(stack, method, start, show_progressbar):
@@ -13,6 +14,11 @@ def align_stack(stack, method, start, show_progressbar):
     Shifts are determined by one of three methods:
         1.) Phase correlation (PC) as implemented in OpenCV.
         2.) Enhanced correlation coefficient (ECC) as implemented in OpenCV.
+        3.) Intensity based method implemented in PyStackReg
+            This method was first described in:
+            P. Thevenaz, U.E. Ruttimann, M. Unser A Pyramid Approach to
+            Subpixel Registration Based on Intensity. IEEE Transactions on
+            Image Processing. vol. 7, no. 1, pp. 27-41, January 1998.
 
     Shifts are then applied and the aligned stack is returned.
 
@@ -127,9 +133,18 @@ def align_stack(stack, method, start, show_progressbar):
                         shifts[i, :] = trans[:, 2]
         return shifts
 
-    shifts = calculate_shifts(stack, method, start, show_progressbar)
-    composed = compose_shifts(shifts, start)
-    aligned = apply_shifts(stack, composed)
+    if method == 'StackReg':
+        sr = StackReg(StackReg.TRANSLATION)
+        tmats = sr.register_stack(stack.data, reference='previous')
+        composed = np.zeros([len(tmats), 2])
+        for i in range(0, len(tmats)):
+            composed[i, :] = tmats[i][0:2, 2]
+        aligned = sr.register_transform_stack(stack.data, reference='previous')
+        aligned = hs.signals.Signal2D(aligned)
+    else:
+        shifts = calculate_shifts(stack, method, start, show_progressbar)
+        composed = compose_shifts(shifts, start)
+        aligned = apply_shifts(stack, composed)
     return aligned, composed
 
 
