@@ -3,6 +3,7 @@ import cv2
 from scipy import ndimage
 import tqdm
 import copy
+import hyperspy.api as hs
 
 
 def align_stack(stack, method, start, show_progressbar):
@@ -157,3 +158,44 @@ def align_to_other(other, shifts):
                           shift=[shifts[i, 1], shifts[i, 0]],
                           order=0)
     return out
+
+
+def get_ecc_error(stack, show_progressbar=False):
+    warp_matrix = np.eye(2, 3, dtype=np.float32)
+    cc = np.zeros(stack.data.shape[0] - 1)
+    for i in tqdm.tqdm(range(0, stack.data.shape[0] - 1),
+                       disable=(not show_progressbar)):
+        (cc[i], trans) =\
+            cv2.findTransformECC(np.float32(stack.data[i, :, :]),
+                                 np.float32(stack.data[i + 1, :, :]),
+                                 warp_matrix,
+                                 cv2.MOTION_TRANSLATION)
+    return cc
+
+
+def apply_hanning(image):
+    h = np.hanning(image.data.shape[0])
+    ham2d = np.sqrt(np.outer(h, h))
+    image.data = image.data * ham2d
+    return image
+
+
+def apply_taper(image, taper_percent):
+    width = np.int32(np.round(taper_percent / 100 * image.data.shape[0]))
+    image.data = np.pad(image.data, pad_width=width, mode='linear_ramp')
+    return image
+
+
+def get_ps(s, crop=True, hanning=False, taper=False, taper_percent=3):
+    image = s.deepcopy()
+    if hanning:
+        image = apply_hanning(image)
+    if taper:
+        image = apply_taper(image, taper_percent)
+
+    ps = hs.signals.Signal2D(np.log(image.fft(shift=True).amplitude()))
+    if crop:
+        offset = ps.data.shape[0]/8
+        center = ps.data.shape[0]/2
+        ps = ps.isig[center-offset:center+offset, center-offset:center+offset]
+    return ps
