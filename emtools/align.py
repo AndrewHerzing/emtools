@@ -195,7 +195,8 @@ def get_ps(s, crop=True, hanning=False, taper=False, taper_percent=3):
 
     ps = hs.signals.Signal2D(np.log(image.fft(shift=True).amplitude()))
     if crop:
-        offset = ps.data.shape[0]/8
-        center = ps.data.shape[0]/2
-        ps = ps.isig[center-offset:center+offset, center-offset:center+offset]
+        offset = ps.data.shape[0] / 8
+        center = ps.data.shape[0] / 2
+        ps = ps.isig[center - offset:center + offset,
+                     center - offset:center + offset]
     return ps
