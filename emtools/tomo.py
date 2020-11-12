@@ -10,7 +10,7 @@ Tomo module for EMTools package
 
 import numpy as np
 import matplotlib.pylab as plt
-import hyperspy.api as hs
+from hyperspy.signals import Signal2D # pylint: disable=no-name-in-module
 from skimage.feature import peak_local_max, canny
 from skimage.measure import label, regionprops
 from skimage.filters import gaussian, threshold_otsu
@@ -108,7 +108,7 @@ def threshold_particles(data, threshold=0.5, return_labels=False):
         offsetZ = data.axes_manager[2].offset
 
         label_image = label(data.data > threshold * data.data.max())
-        label_image = hs.signals.Signal2D(label_image)
+        label_image = Signal2D(label_image)
         regions = regionprops(label_image.data)
 
         data.original_metadata.points = \
@@ -124,7 +124,7 @@ def threshold_particles(data, threshold=0.5, return_labels=False):
         offsetY = data.axes_manager[0].offset
 
         label_image = label(data.data > threshold * data.data.max())
-        label_image = hs.signals.Signal2D(label_image)
+        label_image = Signal2D(label_image)
         regions = regionprops(label_image.data)
 
         data.original_metadata.points = \
@@ -271,7 +271,7 @@ def surface_distance_calc(surface, data, print_stats=False):
             distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
             mindistance[i] = distance.min()
             minindex = np.argmin(distance)
-            minloc[i, :] = surfacepoints[minindex, :]
+            minloc[i, :] = surfacepoints[minindex, :] # pylint: disable=unsubscriptable-object
 
         minloc_cal = minloc * [scaleY, scaleX, scaleZ] + \
             [offsetY, offsetZ, offsetX]
@@ -283,11 +283,11 @@ def surface_distance_calc(surface, data, print_stats=False):
             distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
             mindistance[i] = distance.min()
             minindex = np.argmin(distance)
-            minloc[i, :] = surfacepoints[minindex, :]
+            minloc[i, :] = surfacepoints[minindex, :] # pylint: disable=unsubscriptable-object
         minloc_cal = minloc * [scaleX, scaleY] + [offsetX, offsetY]
         mindistance_cal = mindistance * scaleX
     if print_stats:
-        output_stats(mindistance, scaleX)
+        output_stats(mindistance_cal)
 
     data.original_metadata.minloc = minloc
     data.original_metadata.minloc_cal = minloc_cal
@@ -705,7 +705,7 @@ def particle_distance_calc(data, print_stats=False):
         minloc_cal = minloc * [scaleX, scaleY] + [offsetX, offsetY]
         mindistance_cal = mindistance * scaleX
     if print_stats:
-        output_stats(mindistance, scaleX)
+        output_stats(mindistance_cal)
 
     data.original_metadata.particle_distances = mindistance
     data.original_metadata.particle_distances_cal = mindistance_cal
