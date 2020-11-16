@@ -11,10 +11,7 @@ Colors module for EMTools package
 import numpy as np
 import matplotlib as mpl
 
-"""
-Define several colormaps.
-
-"""
+### Define several colormaps
 thermal = mpl.colors.\
     LinearSegmentedColormap.from_list('gatan_colormap',
                                       ['black', 'blue', 'green', 'red',
@@ -51,7 +48,7 @@ def normalize(image):
     """
     output = image - image.min()
     output = np.uint8(255 * output / output.max())
-    return(output)
+    return output
 
 
 def rgboverlay(im1, im2=None, im3=None):
@@ -81,10 +78,10 @@ def rgboverlay(im1, im2=None, im3=None):
         rgb = np.dstack((normalize(im1),
                          normalize(im2),
                          normalize(im3)))
-    return(rgb)
+    return rgb
 
 
-def gen_cmap(color, alpha=None, N=256):
+def gen_cmap(color, alpha=None, nbins=256):
     """
     Create a Matplotlib colormap ranging from black to a user-defined color.
 
@@ -94,7 +91,7 @@ def gen_cmap(color, alpha=None, N=256):
         Matplotlib compatible color string (Ex. 'red', 'blue', 'r', 'b', etc.)
     alpha : float
         Degree of transparency (Default is None)
-    N : int
+    nbins : int
         Number of bins for the color map (Default is 256)
 
     Returns
@@ -105,12 +102,14 @@ def gen_cmap(color, alpha=None, N=256):
     """
     if alpha:
         cmap = mpl.colors.\
-            LinearSegmentedColormap.from_list('my_cmap', ['black', color], N)
-        cmap._init()
-        cmap._lut[:, -1] = np.linspace(0, alpha, cmap.N + 3)
+            LinearSegmentedColormap.from_list('my_cmap', ['black', color],
+                                              nbins)
+        cmap._init()    # pylint: disable=W0212
+        cmap._lut[:, -1] = np.linspace(0, alpha, cmap.N + 3)    # pylint: disable=W0212
     else:
         cmap = mpl.colors.\
-            LinearSegmentedColormap.from_list('my_cmap', ['black', color], N)
+            LinearSegmentedColormap.from_list('my_cmap', ['black', color],
+                                              nbins)
     return cmap
 
 
@@ -174,7 +173,7 @@ def merge_color_channels(im_list, color_list=None, normalization='single',
             norm_value = im_list[iter_number].max()
         elif method == 'global':
             maxvals = np.zeros(len(im_list))
-            for im_num in range(0, len(im_list)):
+            for im_num, _ in enumerate(im_list):
                 maxvals[im_num] = im_list[im_num].max()
             maxval = maxvals.max()
             norm_value = maxval

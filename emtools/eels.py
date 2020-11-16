@@ -1,8 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+EELS module for EMTools package
+
+@author: Andrew Herzing
+"""
+
+import imp
 import numpy as np
 from scipy.integrate import quad
 import scipy
 import matplotlib.pylab as plt
-import imp
 
 
 def fitsigmatotal(energy, sigma, line=None, plot_results=False):
@@ -28,10 +38,12 @@ def fitsigmatotal(energy, sigma, line=None, plot_results=False):
     def asymptotic(x, a, b, c):
         return a / (x - b) + c
 
-    fit_data, covariance = scipy.optimize.curve_fit(
-        asymptotic, energy, sigma, (10., 1., 1.))
+    fit_data, _ = scipy.optimize.curve_fit(asymptotic, # pylint: disable=unbalanced-tuple-unpacking
+                                           energy,
+                                           sigma,
+                                           (10., 1., 1.))
     if plot_results:
-        fig, ax = plt.subplots(1, figsize=(10, 6))
+        _, ax = plt.subplots(1, figsize=(10, 6))
         ax.plot(energy, sigma, '-o', color='red')
         ax.axhline(fit_data[2], linestyle='--', color='black')
         _ = ax.set_ylim(0, 1.1 * fit_data[2])
@@ -117,7 +129,7 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
         dfdipl = gos_k(e, qa021, z)  # dipole value
         delta_current = e - ek
 
-        if (j != 0):
+        if j != 0:
             s = np.log(dsbdep / dsbyde) / np.log(e / (e - einc))
             sginc = (e * dsbyde - (e - einc) * dsbdep) / (1 - s)
             sigma = sigma + sginc        # barn/atom
@@ -128,13 +140,13 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
                   (e, dsbyde, delta_current, sigma, f))
         eout.append(e)
         sigmaout.append(sigma)
-        if (einc == 0):
+        if einc == 0:
             if verbose:
                 print('\nEnergy increment fell to zero')
             break
 
-        if (delta_current >= delta):
-            if (sginc < 0.0001 * sigma):
+        if delta_current >= delta:
+            if sginc < 0.0001 * sigma:
                 if verbose:
                     print('\nChange in sigma less than 0.0001')
                 break
@@ -142,7 +154,7 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
             einc = einc * 2
 
         e = e + einc
-        if (e > t):
+        if e > t:
             if verbose:
                 print('\nEnergy threshold exceeded')
             break
@@ -179,20 +191,20 @@ def gos_k(E, qa02, z):
     r = 13.606
     zs = 1.0
     rnk = 1
-    if (z != 1):
+    if z != 1:
         zs = z - 0.50
         rnk = 2
 
     q = qa02 / zs ** 2
     kh2 = E / r / zs ** 2 - 1
     akh = np.sqrt(np.abs(kh2))
-    if (akh <= 0.1):
+    if akh <= 0.1:
         akh = 0.1
 
-    if (kh2 >= 0.0):
+    if kh2 >= 0.0:
         d = 1 - np.exp(-2 * np.pi / akh)
         bp = np.arctan(2 * akh / (q - kh2 + 1))
-        if (bp < 0):
+        if bp < 0:
             bp = bp + np.pi
 
         c = np.exp((-2 / akh) * bp)
@@ -287,26 +299,26 @@ def sigmal(z=None, delta=None, e0=None, beta=None, verbose=True):
         dfdipl = gos_l(e, qa021, z)  # dipole value
 
         delta_current = e - el3
-        if(j != 0):
+        if j != 0:
             s = np.log(dsbdep / dsbyde) / np.log(e / (e - einc))
             sginc = (e * dsbyde - (e - einc) * dsbdep) / (1 - s)
             # sigma is the EELS cross section cm**2 per atom
             sigma = sigma + sginc
             f = f + (dfdipl + dfprev) * einc / 2
-            if(delta_current >= 10):
+            if delta_current >= 10:
                 if verbose:
                     print('%4g %17.6f %10d %13.2f %8.4f' %
                           (e, dsbyde, delta_current, sigma, f))
                 eout.append(e)
                 sigmaout.append(sigma)
 
-        if(delta_current >= delta):
-            if(sginc < 0.001 * sigma):
+        if delta_current >= delta:
+            if sginc < 0.001 * sigma:
                 break
             einc = einc * 2
 
         e = e + einc
-        if(e > t):
+        if e > t:
             e = e - einc
             break
 
@@ -354,10 +366,10 @@ def gos_l(E, qa02, z):
     q = qa02 / (zs**2)
     kh2 = (E / (r * zs**2)) - 0.25
     akh = np.sqrt(abs(kh2))
-    if(kh2 >= 0):
+    if kh2 >= 0:
         d = 1 - np.exp(-2 * np.pi / akh)
         bp = np.arctan(akh / (q - kh2 + 0.25))
-        if(bp < 0):
+        if bp < 0:
             bp = bp + np.pi
         c = np.exp((-2 / akh) * bp)
     else:
@@ -366,7 +378,7 @@ def gos_l(E, qa02, z):
                    * np.log((q + 0.25 - kh2 + akh)
                             / (q + 0.25 - kh2 - akh)))
 
-    if(E - el1 <= 0):
+    if E - el1 <= 0 :
         g = 2.25 * q**4 - (0.75 + 3 * kh2) * q**3 \
             + (0.59375 - 0.75 * kh2 - 0.5 * kh2**2) * q * q \
             + (0.11146 + 0.85417 * kh2 + 1.8833 * kh2 * kh2 + kh2**3) * q \
@@ -456,7 +468,7 @@ def sigpar(z, dl, shell, e0, beta):
     elif (shell == 'N') or (shell == 'O'):
         infile = 'Sigpar_fno45.dat'
     else:
-        raise ValueError('Invalid Edge Type ''%s''', shell)
+        raise ValueError("Invalid Edge Type ''%s''" % shell)
     infile = imp.find_module("emtools")[1] + "/data/" + infile
 
     # Read edge type data
@@ -493,7 +505,7 @@ def sigpar(z, dl, shell, e0, beta):
     print('E0 (keV): %g' % e0)
     print('beta(mrad): %g' % beta)
 
-    if((beta ^ 2) > (50 * ec / e0)):
+    if (beta ^ 2) > (50 * ec / e0):
         print('Dipole Approximation NOT VALID, sigma will be too high!\n')
 
     # Calculate Sigma

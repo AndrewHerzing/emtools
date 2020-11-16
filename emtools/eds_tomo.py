@@ -1,15 +1,25 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+EDS Tomography module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 import numpy as np
 import hyperspy.api as hs
 from skimage import measure, filters
 
 
-def get_label_images(si, indices=None, plot=False, titles=None):
+def get_label_images(si_data, indices=None, plot=False, titles=None):
     """
     Segment results of SI decomposition.
 
     Args
     ----------
-    si : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
+    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
         SI datacube
     indices : list
         If provided, return segmented labels for only those components.
@@ -25,16 +35,16 @@ def get_label_images(si, indices=None, plot=False, titles=None):
     labels : list of Hyperspy Signal2D instances
 
     """
-    if not si.learning_results.decomposition_algorithm:
+    if not si_data.learning_results.decomposition_algorithm:
         raise ValueError('Decomposition has not been performed.')
 
     if not indices:
-        indices = np.arange(0, si.learning_results.loadings.shape[1])
+        indices = np.arange(0, si_data.learning_results.loadings.shape[1])
 
     labels = [None] * len(indices)
     masks = [None] * len(indices)
-    for i in range(0, len(indices)):
-        labels[i] = si.get_decomposition_loadings().inav[indices[i]]
+    for i, _ in enumerate(indices):
+        labels[i] = si_data.get_decomposition_loadings().inav[indices[i]]
         thresh = filters.threshold_otsu(labels[i].data)
         masks[i] = labels[i] > thresh
         labels[i] = hs.signals.Signal2D(measure.label(masks[i].data))
@@ -54,13 +64,13 @@ def get_label_images(si, indices=None, plot=False, titles=None):
     return labels
 
 
-def get_masked_intensity(si, label_im, line, bw):
+def get_masked_intensity(si_data, label_im, line, windows):
     """
     Segment results of SI decomposition.
 
     Args
     ----------
-    si : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
+    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
         SI datacube.
     label_im : Hyperspy Signal2D
         Segmented image to use as mask. Must have the same navigation
@@ -68,7 +78,7 @@ def get_masked_intensity(si, label_im, line, bw):
     line : str
         X-ray line for which to extract the masked intensity. Must be in the
         corrected format (e.g. 'Ni_Ka')
-    bw : list of floats
+    windows : list of floats
         Pre-peak and post-peak windows to use for background fitting.
 
     Returns
@@ -77,17 +87,17 @@ def get_masked_intensity(si, label_im, line, bw):
         Integrated intensity for peak in the masked region
 
     """
-    si.unfold()
-    masked = si.deepcopy()
+    si_data.unfold()
+    masked = si_data.deepcopy()
     intensities = [None] * label_im.data.max()
     for i in range(0, label_im.data.max()):
         mask = label_im == i + 1
         mask.unfold()
-        masked.data = (mask.data * si.data.T).T
+        masked.data = (mask.data * si_data.data.T).T
         result = masked.get_lines_intensity(xray_lines=[line, ],
-                                            backround_windows=bw)[0]
+                                            backround_windows=windows)[0]
         intensities[i] = result.sum().data[0]
-    si.fold()
+    si_data.fold()
     intensities = np.array(intensities)
     return intensities
 
@@ -111,10 +121,10 @@ def get_volumes(label_im, scale):
     """
     volumes = [None] * label_im.data.max()
     regions = measure.regionprops(label_im.data, coordinates='xy')
-    for i in range(0, len(regions)):
-        h = 1e-9 * scale * regions[i]['minor_axis_length']
-        r = 1e-9 * scale * regions[i]['major_axis_length']
-        volumes[i] = np.pi * r**2 * h
+    for i, _ in enumerate(regions):
+        height = 1e-9 * scale * regions[i]['minor_axis_length']
+        radius = 1e-9 * scale * regions[i]['major_axis_length']
+        volumes[i] = np.pi * radius**2 * height
     volumes = np.array(volumes)
     return volumes
 
@@ -140,21 +150,21 @@ def get_tau_d(label_im, scale, tau):
     """
     regions = measure.regionprops(label_im.data, coordinates='xy')
     tau_d = [None] * len(regions)
-    for i in range(0, len(regions)):
+    for i, _ in enumerate(regions):
         npix = regions[i]['area']
         tau_d[i] = tau / (npix * (scale * 1e-9)**2)
     tau_d = np.array(tau_d)
     return tau_d
 
 
-def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
+def get_zeta_factor(si_data, label_im, line, windows=[4.0, 4.5, 11.8, 12.2],
                     i_probe=0.5e-9, tau=200e-3, rho=None):
     """
     Calculate the zeta factor for each segmented region.
 
     Args
     ----------
-    si : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
+    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
         SI datacube.
     label_im : Hyperspy Signal2D
         Segmented image to use as mask. Must have the same navigation
@@ -162,7 +172,7 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
     line : str
         X-ray line for which to extract the masked intensity. Must be in the
         corrected format (e.g. 'Ni_Ka')
-    bw : list of floats
+    windows : list of floats
         Pre-peak and post-peak windows to use for background fitting.
     i_probe : float
         Probe current used for data collection in amps.
@@ -179,30 +189,30 @@ def get_zeta_factor(si, label_im, line, bw=[4.0, 4.5, 11.8, 12.2],
     fit : NumPy array
 
     """
-    Ne = 6.242e18               # Electrons per Coulomb
+    e_per_coulumb = 6.242e18               # Electrons per Coulomb
     results = {}
 
-    """Extract the intensity of the chosen line in each masked reagion from
-    the original SI"""
-    counts = get_masked_intensity(si, label_im, line, bw)
+    ### Extract the intensity of the chosen line in each masked reagion from
+    ### the original SI
+    counts = get_masked_intensity(si_data, label_im, line, windows)
 
-    """Estimate the volume of each region assuming a cylindrical shape"""
-    volumes = get_volumes(label_im, si.axes_manager[0].scale)
+    ### Estimate the volume of each region assuming a cylindrical shape
+    volumes = get_volumes(label_im, si_data.axes_manager[0].scale)
 
-    """Calculate the dwell time per unit area for each segmented region"""
-    tau_d = get_tau_d(label_im, si.axes_manager[0].scale, tau)
+    ### Calculate the dwell time per unit area for each segmented region
+    tau_d = get_tau_d(label_im, si_data.axes_manager[0].scale, tau)
 
-    """Calculate the counts per electron dose for each volume"""
-    counts_per_electron = counts / (Ne * i_probe * tau_d)
+    ### Calculate the counts per electron dose for each volume
+    counts_per_electron = counts / (e_per_coulumb * i_probe * tau_d)
 
-    """Calculate the amount of mass present in each volume"""
+    ### Calculate the amount of mass present in each volume
     rho_v = rho * volumes
 
-    """Perform a linear fit to rho_v vs. counts_per_dose"""
-    zeta, b = np.polyfit(np.append(0, counts_per_electron),
-                         np.append(0, rho_v),
-                         1)
-    fit = zeta * counts_per_electron + b
+    ### Perform a linear fit to rho_v vs. counts_per_dose
+    zeta, slope = np.polyfit(np.append(0, counts_per_electron),
+                             np.append(0, rho_v),
+                             1)
+    fit = zeta * counts_per_electron + slope
 
     results['counts'] = counts
     results['volumes'] = volumes

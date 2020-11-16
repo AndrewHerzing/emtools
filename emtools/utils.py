@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+Utilities module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 import numpy as np
 import hyperspy.api as hs
 

@@ -1,8 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+Masking module for EMTools package
+
+@author: Andrew Herzing
+"""
+
 import numpy as np
 import matplotlib.pylab as plt
 
 
-def get_mask(s, r, r_outer=None, type='circular'):
+def get_mask(s, r, r_outer=None, filter_type='circular'):
     """
     Create a 2D circular or annular logical mask.
 
@@ -15,7 +25,7 @@ def get_mask(s, r, r_outer=None, type='circular'):
         radius.  If 'annular', this defines the inner radius.
     r_outer : int
         For 'type' annular, defines the outer radius of the mask.
-    type : str
+    filter_type : str
         Must be either 'circular' or 'annular'
 
 
@@ -30,14 +40,14 @@ def get_mask(s, r, r_outer=None, type='circular'):
 
     Y, X = np.ogrid[:h, :w]
     dist_from_center = np.sqrt((X - center[0])**2 + (Y - center[1])**2)
-    if type == 'circular':
+    if filter_type == 'circular':
         mask = dist_from_center <= r
-    elif type == 'annular':
+    elif filter_type == 'annular':
         mask = np.logical_and(dist_from_center <= r_outer,
                               dist_from_center > r)
     else:
         raise ValueError("Unknow mask type %s. Must be 'circle' or 'annular'."
-                         % type)
+                         % filter_type)
     return mask
 
 
@@ -67,9 +77,12 @@ def display_masks(im, masks, mask_alpha=0.5, log=True, im_min=8, im_max=11):
     nmasks = len(masks)
     levels = np.linspace(2, 9, nmasks)
     total = np.zeros(masks[0].shape)
-    for i in range(0, len(masks)):
+    for i, _ in enumerate(masks):
         total += levels[i] * masks[i]
     plt.figure()
-    plt.imshow(np.log(im + 1), vmin=im_min, vmax=im_max)
+    if log:
+        plt.imshow(np.log(im + 1), vmin=im_min, vmax=im_max)
+    else:
+        plt.imshow(im, vmin=im_min, vmax=im.max)
     plt.imshow(total, cmap='nipy_spectral', vmin=0, vmax=10, alpha=mask_alpha)
     return

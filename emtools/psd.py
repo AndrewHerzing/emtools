@@ -45,7 +45,7 @@ def remove_particles(segmentation):
     n_removed = len(coords)
     if n_removed > 0:
         removed_any = True
-    for i in range(0, len(coords)):
+    for i, _ in enumerate(coords):
         val = segmentation[np.int32(coords[i][1]), np.int32(coords[i][0])]
         segmentation[segmentation == val] = 0
     return segmentation, removed_any, n_removed
@@ -75,7 +75,7 @@ def pick_particles(segmentation):
     plt.close()
 
     particles = np.zeros_like(segmentation)
-    for i in range(0, len(coords)):
+    for i, _ in enumerate(coords):
         val = segmentation[np.int32(coords[i][1]), np.int32(coords[i][0])]
         particles[segmentation == val] = val
     return particles
@@ -171,7 +171,7 @@ def get_props(s, thresh=None, border=5):
     props = measure.regionprops(particles, coordinates='xy')
     results['n_measured'] = len(props)
 
-    for i in range(0, len(props)):
+    for i in enumerate(props):
         d = pixsize * props[i]['equivalent_diameter']
         maxf = pixsize * props[i]['major_axis_length']
         minf = pixsize * props[i]['minor_axis_length']
@@ -272,19 +272,19 @@ def csd(data, plot=False, outfile=None):
 
     Returns
     ----------
-    csd : Numpy array
+    result : Numpy array
         Cumulative size distribution of the input data.
 
     """
     max_val = np.int32(np.ceil(data.max()))
-    csd = np.zeros([max_val, 2])
-    csd[:, 0] = np.arange(0, max_val)
+    result = np.zeros([max_val, 2])
+    result[:, 0] = np.arange(0, max_val)
     for i in range(0, max_val):
-        csd[i, 1] = sum(data < i)
+        result[i, 1] = sum(data < i)
     if plot:
         plt.figure()
-        plt.scatter(csd[:, 0], csd[:, 1])
+        plt.scatter(result[:, 0], result[:, 1])
     if outfile:
-        np.savetxt(outfile, csd, header='Diameter\tCSD\n(nm)\tN.A.',
+        np.savetxt(outfile, result, header='Diameter\tCSD\n(nm)\tN.A.',
                    fmt='%.1f', delimiter='\t')
-    return csd
+    return result
