@@ -94,11 +94,12 @@ def calc_hkl(hkl, unit_cell='cubic', a_dim=None, b_dim=None, c_dim=None,
             raise ValueError("Must provide lattice constant 'alpha' for unit\
                 cell type '%s'." % unit_cell)
         d_hkl = np.sqrt((1 / (((h_index**2 + h_index * k_index + k_index**2)
-                        * (np.sin(alpha))**2
-            + 2 * (h_index * k_index + k_index * l_index + l_index * h_index)
-                * ((np.cos(alpha))**2 - np.cos(alpha)))
-                    / (a_dim**2 * (1 + 2 * (np.cos(alpha))**3
-                                   - 3 * (np.cos(alpha))**2)))))
+                               * (np.sin(alpha))**2
+                               + 2 * (h_index * k_index + k_index
+                                      * l_index + l_index * h_index)
+                               * ((np.cos(alpha))**2 - np.cos(alpha)))
+                              / (a_dim**2 * (1 + 2 * (np.cos(alpha))**3
+                                 - 3 * (np.cos(alpha))**2)))))
 
     elif unit_cell == 'orthorhombic':
         if not a_dim:
