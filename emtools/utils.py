@@ -178,20 +178,20 @@ def change_units(im, new_units='nm'):
     elif new_units == 'A':
         if im.axes_manager[0].units in ['um', 'µm']:
             im.axes_manager[0].units = 'A'
-            im.axes_manager[0].scale = 1e4*im.axes_manager[0].scale
+            im.axes_manager[0].scale = 1e4 * im.axes_manager[0].scale
             im.axes_manager[1].units = 'A'
-            im.axes_manager[1].scale = 1e4*im.axes_manager[1].scale
+            im.axes_manager[1].scale = 1e4 * im.axes_manager[1].scale
         elif im.axes_manager[0].units == 'nm':
             im.axes_manager[0].units = 'A'
-            im.axes_manager[0].scale = 10*im.axes_manager[0].scale
+            im.axes_manager[0].scale = 10 * im.axes_manager[0].scale
             im.axes_manager[1].units = 'A'
-            im.axes_manager[1].scale = 10*im.axes_manager[1].scale
+            im.axes_manager[1].scale = 10 * im.axes_manager[1].scale
     elif new_units == 'nm':
         if im.axes_manager[0].units == 'um':
             im.axes_manager[0].units = 'nm'
-            im.axes_manager[0].scale = 1e3*im.axes_manager[0].scale
+            im.axes_manager[0].scale = 1e3 * im.axes_manager[0].scale
             im.axes_manager[1].units = 'nm'
-            im.axes_manager[1].scale = 1e3*im.axes_manager[1].scale
+            im.axes_manager[1].scale = 1e3 * im.axes_manager[1].scale
         elif im.axes_manager[0].units == 'A':
             im.axes_manager[0].units = 'nm'
             im.axes_manager[0].scale = im.axes_manager[0].scale/10
