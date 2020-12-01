@@ -15,6 +15,7 @@ import numpy as np
 
 datapath = imp.find_module("emtools")[1] + "/data/"
 
+
 def get_test_spectrum(material='2063a'):
     """
     Load a reference spectrum from a chosen test material
@@ -107,7 +108,7 @@ def calc_zeta_factor(spec, element, line, thickness, i_probe=None,
     if not windows:
         windows = spec.estimate_background_windows(line_width=line_width)
     counts = spec.get_lines_intensity([line, ],
-                                   background_windows=windows)[0].data[0]
+                                      background_windows=windows)[0].data[0]
 
     rho = 1000 * hs.material.elements[element].Physical_properties.density_gcm3
     if not i_probe:
@@ -117,13 +118,14 @@ def calc_zeta_factor(spec, element, line, thickness, i_probe=None,
         else:
             raise ValueError('Probe current not specified in metadata')
     if not live_time:
-        if 'Acquisition_instrument.TEM.Detector.EDS.live_time' in spec.metadata:
+        key_check = 'Acquisition_instrument.TEM.Detector.EDS.live_time'
+        if key_check in spec.metadata:
             live_time = spec.metadata.Acquisition_instrument.TEM.\
                 Detector.EDS.live_time
         else:
             raise ValueError('Live-time not specified in metadata')
 
-    zeta = (rho * thickness * electrons_per_coulomb *\
+    zeta = (rho * thickness * electrons_per_coulomb *
             i_probe * live_time) / counts
     return zeta
 
@@ -184,7 +186,7 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     electrons_per_coulomb = 6.242e18
     gmole_niox = 58.7 + 16.0
     n_atoms = 6.02e23 * rho / gmole_niox * thickness * 1e-7\
-              / np.cos(tilt * np.pi / 180)
+        / np.cos(tilt * np.pi / 180)
     sigma_ni = 255e-24
     dose = electrons_per_coulomb * live_time * i_probe
     w_ni = 0.414
@@ -207,7 +209,7 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     # model.calibrate_xray_lines('width', ['Ni_Ka', 'Mo-Ka', 'Mo-La'],
     #                            bound=10)
 
-    ### Net Counts
+    # Net Counts
     ni_ka = model.components.Ni_Ka.A.value
     ni_kb = model.components.Ni_Kb.A.value
     mo_ka = model.components.Mo_Ka.A.value
@@ -241,7 +243,7 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     results['Peaks']['MoLa']['Counts'] = mo_la
     results['Peaks']['MoLa']['Sigma'] = sigma_mo_la
 
-    ### Energy Resolution
+    # Energy Resolution
     results['Resolution'] = {}
     results['Resolution']['Height'] = ni_ka
     results['Resolution']['Center'] = model.components.Ni_Ka.centre.value
@@ -252,7 +254,7 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     results['Resolution']['FWHM']['MnKa'] = \
         (0.926 * 1000.0 * model.components.Ni_Ka.fwhm)
 
-    ### Peak to Background
+    # Peak to Background
 
     fwtm = 2 * np.sqrt(2 * np.log(10)) * model.components.Ni_Ka.sigma.value
 
@@ -263,12 +265,12 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
 
     totalpb = ni_ka / bckgavg
     sigma_total = totalpb * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                   (np.sqrt(bckgavg) / bckgavg)**2)
+                                    (np.sqrt(bckgavg) / bckgavg)**2)
 
     fiori = ni_ka / bckgsingle
     sigma_fiori = fiori * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                 (np.sqrt(bckg1) / bckg1)**2 +
-                                 (np.sqrt(bckg2) / bckg2)**2)
+                                  (np.sqrt(bckg1) / bckg1)**2 +
+                                  (np.sqrt(bckg2) / bckg2)**2)
 
     results['FioriPB'] = {}
     results['FioriPB']['Value'] = fiori
@@ -277,40 +279,40 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     results['TotalPB']['Value'] = totalpb
     results['TotalPB']['Sigma'] = sigma_total
 
-    ### Hole Count
+    # Hole Count
     holecount_mo = ni_ka / mo_ka
     sigma_mo = holecount_mo * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                    (sigma_mo_ka / mo_ka)**2)
+                                      (sigma_mo_ka / mo_ka)**2)
 
     holecount_fe = ni_ka / fe_ka
     sigma_fe = holecount_fe *\
-        np.sqrt((sigma_ni_ka / model.components.Ni_Ka.A.value)**2 +\
-        (sigma_fe_ka / fe_ka)**2)
+        np.sqrt((sigma_ni_ka / model.components.Ni_Ka.A.value)**2 +
+                (sigma_fe_ka / fe_ka)**2)
 
     results['HoleCount'] = {}
     results['HoleCount']['MoKa'] = {}
     results['HoleCount']['MoKa']['Value'] = holecount_mo
     results['HoleCount']['MoKa']['Sigma'] = sigma_mo
 
-    ### Mo K to L Ratio
+    # Mo K to L Ratio
     mo_kl_ratio = mo_ka / mo_la
     sigma_mo_kl = mo_kl_ratio * np.sqrt((sigma_mo_ka / mo_ka)**2 +
-                                    (sigma_mo_la / mo_la)**2)
+                                        (sigma_mo_la / mo_la)**2)
 
     results['MoKL_Ratio'] = {}
     results['MoKL_Ratio']['Value'] = mo_kl_ratio
     results['MoKL_Ratio']['Sigma'] = sigma_mo_kl
 
-    ### Solid Angle and Efficiency
+    # Solid Angle and Efficiency
     omega = 4 * np.pi * (ni_ka + ni_kb) / (n_atoms * sigma_ni * w_ni * dose)
     sigma_omega = omega * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                 (sigma_ni_kb / ni_kb)**2 +
-                                 (thickness_error / thickness)**2)
+                                  (sigma_ni_kb / ni_kb)**2 +
+                                  (thickness_error / thickness)**2)
 
     efficiency = (ni_ka + ni_kb) / (live_time * i_probe * 1e9 * omega)
     sigma_efficiency = efficiency * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                           (sigma_ni_kb / ni_kb)**2 +
-                                           (sigma_omega / omega)**2)
+                                            (sigma_ni_kb / ni_kb)**2 +
+                                            (sigma_omega / omega)**2)
     results['Omega'] = {}
     results['Omega']['Value'] = omega
     results['Omega']['Sigma'] = sigma_omega
@@ -318,7 +320,7 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     results['Efficiency']['Value'] = efficiency
     results['Efficiency']['Sigma'] = sigma_efficiency
 
-    ### Analysis Output
+    # Analysis Output
 
     if display:
         print('Results of NiOx Analysis')
@@ -841,7 +843,7 @@ class QuantSpec:
             model.fit_background()
 
             result = model.get_lines_intensity(plot_result=False,
-                                           xray_lines=lines_to_get)
+                                               xray_lines=lines_to_get)
             if verbose:
                 print('Results for Peak Fit')
                 print('Material: %s' % self.material)

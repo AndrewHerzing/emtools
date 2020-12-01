@@ -11,7 +11,7 @@ Colors module for EMTools package
 import numpy as np
 import matplotlib as mpl
 
-### Define several colormaps
+# Define several colormaps
 thermal = mpl.colors.\
     LinearSegmentedColormap.from_list('gatan_colormap',
                                       ['black', 'blue', 'green', 'red',
@@ -104,8 +104,8 @@ def gen_cmap(color, alpha=None, nbins=256):
         cmap = mpl.colors.\
             LinearSegmentedColormap.from_list('my_cmap', ['black', color],
                                               nbins)
-        cmap._init()    # pylint: disable=W0212
-        cmap._lut[:, -1] = np.linspace(0, alpha, cmap.N + 3)    # pylint: disable=W0212
+        cmap._init()
+        cmap._lut[:, -1] = np.linspace(0, alpha, cmap.N + 3)
     else:
         cmap = mpl.colors.\
             LinearSegmentedColormap.from_list('my_cmap', ['black', color],

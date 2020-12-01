@@ -176,7 +176,7 @@ def change_units(im, new_units='nm'):
     if im.axes_manager[0].units == new_units:
         return im
     elif new_units == 'A':
-        if im.axes_manager[0].units == 'um' or im.axes_manager[0].units == 'µm':
+        if im.axes_manager[0].units in ['um', 'µm']:
             im.axes_manager[0].units = 'A'
             im.axes_manager[0].scale = 1e4*im.axes_manager[0].scale
             im.axes_manager[1].units = 'A'

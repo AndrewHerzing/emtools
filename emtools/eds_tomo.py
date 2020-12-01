@@ -19,7 +19,7 @@ def get_label_images(si_data, indices=None, plot=False, titles=None):
 
     Args
     ----------
-    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
+    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, EDSTEMSpectrum
         SI datacube
     indices : list
         If provided, return segmented labels for only those components.
@@ -70,7 +70,7 @@ def get_masked_intensity(si_data, label_im, line, windows):
 
     Args
     ----------
-    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
+    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, EDSTEMSpectrum
         SI datacube.
     label_im : Hyperspy Signal2D
         Segmented image to use as mask. Must have the same navigation
@@ -164,7 +164,7 @@ def get_zeta_factor(si_data, label_im, line, windows=[4.0, 4.5, 11.8, 12.2],
 
     Args
     ----------
-    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, or EDSTEMSpectrum
+    si_data : Hyperspy Signal2D, EELSSpectrum, EDSSemSpectrum, EDSTEMSpectrum
         SI datacube.
     label_im : Hyperspy Signal2D
         Segmented image to use as mask. Must have the same navigation
@@ -192,23 +192,23 @@ def get_zeta_factor(si_data, label_im, line, windows=[4.0, 4.5, 11.8, 12.2],
     e_per_coulumb = 6.242e18               # Electrons per Coulomb
     results = {}
 
-    ### Extract the intensity of the chosen line in each masked reagion from
-    ### the original SI
+    # Extract the intensity of the chosen line in each masked reagion from
+    # the original SI
     counts = get_masked_intensity(si_data, label_im, line, windows)
 
-    ### Estimate the volume of each region assuming a cylindrical shape
+    # Estimate the volume of each region assuming a cylindrical shape
     volumes = get_volumes(label_im, si_data.axes_manager[0].scale)
 
-    ### Calculate the dwell time per unit area for each segmented region
+    # Calculate the dwell time per unit area for each segmented region
     tau_d = get_tau_d(label_im, si_data.axes_manager[0].scale, tau)
 
-    ### Calculate the counts per electron dose for each volume
+    # Calculate the counts per electron dose for each volume
     counts_per_electron = counts / (e_per_coulumb * i_probe * tau_d)
 
-    ### Calculate the amount of mass present in each volume
+    # Calculate the amount of mass present in each volume
     rho_v = rho * volumes
 
-    ### Perform a linear fit to rho_v vs. counts_per_dose
+    # Perform a linear fit to rho_v vs. counts_per_dose
     zeta, slope = np.polyfit(np.append(0, counts_per_electron),
                              np.append(0, rho_v),
                              1)

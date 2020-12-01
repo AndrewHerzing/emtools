@@ -10,7 +10,7 @@ Tomo module for EMTools package
 
 import numpy as np
 import matplotlib.pylab as plt
-from hyperspy.signals import Signal2D # pylint: disable=no-name-in-module
+from hyperspy.signals import Signal2D  # pylint: disable=no-name-in-module
 from skimage.feature import peak_local_max, canny
 from skimage.measure import label, regionprops
 from skimage.filters import gaussian, threshold_otsu
@@ -271,7 +271,7 @@ def surface_distance_calc(surface, data, print_stats=False):
             distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
             mindistance[i] = distance.min()
             minindex = np.argmin(distance)
-            minloc[i, :] = surfacepoints[minindex, :] # pylint: disable=unsubscriptable-object
+            minloc[i, :] = surfacepoints[minindex, :]
 
         minloc_cal = minloc * [scale_y, scale_x, scale_z] + \
             [offset_y, offset_z, offset_x]
@@ -283,7 +283,7 @@ def surface_distance_calc(surface, data, print_stats=False):
             distance = np.sqrt(((surfacepoints - points[i])**2).sum(1))
             mindistance[i] = distance.min()
             minindex = np.argmin(distance)
-            minloc[i, :] = surfacepoints[minindex, :] # pylint: disable=unsubscriptable-object
+            minloc[i, :] = surfacepoints[minindex, :]
         minloc_cal = minloc * [scale_x, scale_y] + [offset_x, offset_y]
         mindistance_cal = mindistance * scale_x
     if print_stats:
@@ -487,11 +487,11 @@ def plot_particle_to_surface_result(data_signal, edge_signal, idx=None,
             image_yz.plot(cmap='gray')
             ax1 = plt.gca()
             ax1.plot([particle_loc[1], edge_loc[1]],
-                      [particle_loc[0], edge_loc[0]],
-                      '-wo')
+                     [particle_loc[0], edge_loc[0]],
+                     '-wo')
             ax1.plot(edge_loc[1], edge_loc[0], 'o', color='b', alpha=0.5)
             ax1.plot(particle_loc[1], particle_loc[0],
-                      'o', color='r', alpha=0.5)
+                     'o', color='r', alpha=0.5)
             plt.title('YZ Slice')
 
         elif axis == 'XYall' or 'XZall' or 'YZall':
@@ -503,8 +503,8 @@ def plot_particle_to_surface_result(data_signal, edge_signal, idx=None,
                 ax1 = plt.gca()
 
                 ax1.plot([particle_loc[:, 2], edge_loc[:, 2]],
-                          [particle_loc[:, 1], edge_loc[:, 1]],
-                          '-o')
+                         [particle_loc[:, 1], edge_loc[:, 1]],
+                         '-o')
                 plt.title('XZ Projection')
 
             elif axis == 'XYall':
@@ -513,8 +513,8 @@ def plot_particle_to_surface_result(data_signal, edge_signal, idx=None,
                 ax1 = plt.gca()
 
                 ax1.plot([particle_loc[:, 2], edge_loc[:, 2]],
-                        [particle_loc[:, 0], edge_loc[:, 0]],
-                        '-o')
+                         [particle_loc[:, 0], edge_loc[:, 0]],
+                         '-o')
                 plt.title('XY Projection')
 
             elif axis == 'YZall':
@@ -539,8 +539,8 @@ def plot_particle_to_surface_result(data_signal, edge_signal, idx=None,
         ax1 = plt.gca()
 
         ax1.plot([particle_loc[:, 1], edge_loc[:, 1]],
-                [particle_loc[:, 0], edge_loc[:, 0]],
-                '-o')
+                 [particle_loc[:, 0], edge_loc[:, 0]],
+                 '-o')
     fig = plt.gcf()
     return fig
 

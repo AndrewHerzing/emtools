@@ -38,7 +38,7 @@ def fitsigmatotal(energy, sigma, line=None, plot_results=False):
     def asymptotic(x, a, b, c):
         return a / (x - b) + c
 
-    fit_data, _ = scipy.optimize.curve_fit(asymptotic, # pylint: disable=unbalanced-tuple-unpacking
+    fit_data, _ = scipy.optimize.curve_fit(asymptotic,
                                            energy,
                                            sigma,
                                            (10., 1., 1.))
@@ -378,7 +378,7 @@ def gos_l(E, qa02, z):
                    * np.log((q + 0.25 - kh2 + akh)
                             / (q + 0.25 - kh2 - akh)))
 
-    if E - el1 <= 0 :
+    if E - el1 <= 0:
         g = 2.25 * q**4 - (0.75 + 3 * kh2) * q**3 \
             + (0.59375 - 0.75 * kh2 - 0.5 * kh2**2) * q * q \
             + (0.11146 + 0.85417 * kh2 + 1.8833 * kh2 * kh2 + kh2**3) * q \
