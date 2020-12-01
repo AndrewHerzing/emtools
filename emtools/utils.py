@@ -154,3 +154,47 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
 
     energy_loss = (2 / atom_mass) * (k * np.sin(theta / 2000))**2
     return energy_loss
+
+
+def change_units(im, new_units='nm'):
+    """
+    Change the spatial calibration units of an image.
+
+    Args
+    ----------
+    im : Hyperspy Signal2D
+        Image to change units
+    new_units : string
+        New units. Must be 'nm', 'um', or 'A'.
+
+    Returns
+    ----------
+    im_changed : Hyperspy Signal2D
+        Copy of input image with units changed.
+    """
+
+    if im.axes_manager[0].units == new_units:
+        return im
+    elif new_units == 'A':
+        if im.axes_manager[0].units == 'um' or im.axes_manager[0].units == 'µm':
+            im.axes_manager[0].units = 'A'
+            im.axes_manager[0].scale = 1e4*im.axes_manager[0].scale
+            im.axes_manager[1].units = 'A'
+            im.axes_manager[1].scale = 1e4*im.axes_manager[1].scale
+        elif im.axes_manager[0].units == 'nm':
+            im.axes_manager[0].units = 'A'
+            im.axes_manager[0].scale = 10*im.axes_manager[0].scale
+            im.axes_manager[1].units = 'A'
+            im.axes_manager[1].scale = 10*im.axes_manager[1].scale
+    elif new_units == 'nm':
+        if im.axes_manager[0].units == 'um':
+            im.axes_manager[0].units = 'nm'
+            im.axes_manager[0].scale = 1e3*im.axes_manager[0].scale
+            im.axes_manager[1].units = 'nm'
+            im.axes_manager[1].scale = 1e3*im.axes_manager[1].scale
+        elif im.axes_manager[0].units == 'A':
+            im.axes_manager[0].units = 'nm'
+            im.axes_manager[0].scale = im.axes_manager[0].scale/10
+            im.axes_manager[1].units = 'nm'
+            im.axes_manager[1].scale = im.axes_manager[1].scale/10
+    return im
