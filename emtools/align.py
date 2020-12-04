@@ -69,8 +69,8 @@ def apply_taper(image, taper_percent):
     return image
 
 
-def get_ps(s, crop=True, hanning=False, taper=False, taper_percent=3,
-           crop_factor=4):
+def get_ps(s, crop=True, hanning=True, taper=False, taper_percent=3,
+           crop_factor=3):
     """
     Return the Fourier power spectrum of an image.
 
