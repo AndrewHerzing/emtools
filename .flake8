@@ -3,3 +3,7 @@ exclude =
     api.py,
     __init__.py
     scratch/scratch.py
+ignore =
+    F841,
+    W503,
+    W504
