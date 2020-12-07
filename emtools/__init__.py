@@ -9,4 +9,4 @@ __init__.py file for EMTools package
 """
 
 from emtools import color, diffraction, eds_tomo, eds, eels, \
-    filters, io, mask, psd, rdf, tomo, utils, align
+    filters, io, mask, psd, rdf, tomo, utils, align, calib

@@ -18,17 +18,18 @@ h = 6.626e-34       # Planck's constant
 c = 2.998e8         # Speed of light in vacuum (m/s)
 Na = 6.0221409e23   # Avogadro's number
 
+
 def mrads_to_hkl(angle, voltage):
     """
     Convert from an diffraction angle (mrads) to lattice spacing (nm)
-    
+
     Args
     ----------
     mrads : float
         Scattering angle in mrads
     voltage : float or int
         Electron beam voltage (kV)
-    
+
     Returns
     ----------
     d : float
@@ -36,29 +37,31 @@ def mrads_to_hkl(angle, voltage):
     """
 
     wavelength = voltage_to_wavelength(300, True)
-    d = wavelength/(2*np.sin(angle/1000))
+    d = wavelength / (2 * np.sin(angle / 1000))
     return d
+
 
 def mrads_to_k(angle, voltage):
     """
     Convert from an angular measurement (mrads) to reciprocal space (nm^-1)
-    
+
     Args
     ----------
     mrads : float
         Scattering angle in mrads
     voltage : float or int
         Electron beam voltage (kV)
-    
+
     Returns
     ----------
     d : float
         Reciprocal lattice spacing in either inverse nanometers
     """
     wavelength = voltage_to_wavelength(300, True)
-    d = wavelength/(2*np.sin(angle/1000))
-    k = 1/d
+    d = wavelength / (2 * np.sin(angle / 1000))
+    k = 1 / d
     return k
+
 
 def voltage_to_wavelength(voltage, relativistic=False):
     """
