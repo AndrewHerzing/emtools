@@ -58,8 +58,7 @@ def mrads_to_k(angle, voltage):
         Reciprocal lattice spacing in either inverse nanometers
     """
     wavelength = voltage_to_wavelength(300, True)
-    d = wavelength / (2 * np.sin(angle / 1000))
-    k = 1 / d
+    k = (2 * np.sin(angle/1000)) / wavelength
     return k
 
 
