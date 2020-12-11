@@ -54,13 +54,32 @@ def mrads_to_k(angle, voltage):
 
     Returns
     ----------
-    d : float
+    k : float
         Reciprocal lattice spacing in either inverse nanometers
     """
-    wavelength = voltage_to_wavelength(300, True)
+    wavelength = voltage_to_wavelength(voltage, True)
     k = (2 * np.sin(angle/1000)) / wavelength
     return k
 
+def k_to_mrads(k, voltage):
+    """
+    Convert from a reciprocal space (nm^-1) value an angular value (mrads) 
+
+    Args
+    ----------
+    k : float
+        Reciprocal lattice spacing in either inverse nanometers
+    voltage : float or int
+        Electron beam voltage (kV)
+
+    Returns
+    ----------
+    angle : float
+        Scattering angle in mrads
+    """
+    wavelength = voltage_to_wavelength(voltage, True)
+    angle = 1000 * np.arcsin(k * wavelength / 2)
+    return angle
 
 def voltage_to_wavelength(voltage, relativistic=False):
     """
