@@ -58,12 +58,13 @@ def mrads_to_k(angle, voltage):
         Reciprocal lattice spacing in either inverse nanometers
     """
     wavelength = voltage_to_wavelength(voltage, True)
-    k = (2 * np.sin(angle/1000)) / wavelength
+    k = (2 * np.sin(angle / 1000)) / wavelength
     return k
+
 
 def k_to_mrads(k, voltage):
     """
-    Convert from a reciprocal space (nm^-1) value an angular value (mrads) 
+    Convert from a reciprocal space (nm^-1) value an angular value (mrads)
 
     Args
     ----------
@@ -80,6 +81,7 @@ def k_to_mrads(k, voltage):
     wavelength = voltage_to_wavelength(voltage, True)
     angle = 1000 * np.arcsin(k * wavelength / 2)
     return angle
+
 
 def voltage_to_wavelength(voltage, relativistic=False):
     """
