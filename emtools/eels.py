@@ -523,3 +523,68 @@ def sigpar(z, dl, shell, e0, beta):
     print('sigma = %0.3g cm^2' % sigma)
     if np.logical_not(((beta**2) > (50 * ec / e0))):
         print('Estimated accuracy = %0.4g %%' % erp)
+
+
+def _F(electron_energy):
+    return (1 + electron_energy / 1022) / (1 + electron_energy / 511) ** 2
+
+
+def _theta_E(density, electron_energy):
+    return 5.5 * density ** 0.3 / (_F(electron_energy) * electron_energy)
+
+
+def iMFP_Iakoubovskii(density, electron_energy):
+    """Estimate electron inelastic mean free path from density
+    Parameters:
+    -----------
+    density : float
+        Material density in g/cm**3
+    beam_energy : float
+        Electron beam energy in keV
+    Notes:
+    ------
+    For details see Equation 9 in:
+    - Iakoubovskii, K., K. Mitsuishi, Y. Nakayama, and K. Furuya.
+      ‘Thickness Measurements with Electron Energy Loss Spectroscopy’.
+      Microscopy Research and Technique 71, no. 8 (2008): 626–31.
+      https://doi.org/10.1002/jemt.20597.
+    Returns
+    -------
+    float
+        Inelastic mean free path in nanometers
+    """
+    theta_C = 20  # mrad
+    inv_lambda = 11 * density ** 0.3\
+        / (200 * _F(electron_energy) * electron_energy)\
+        * np.log(theta_C ** 2 / _theta_E(density, electron_energy) ** 2)
+    return 1 / inv_lambda
+
+
+def iMFP_angular_correction(density, beam_energy, alpha, beta):
+    """Estimate the effect of limited collection angle on EELS mean free path
+    Parameters:
+    -----------
+    density : float
+        Material density in g/cm**3
+    beam_energy : float
+        Electron beam energy in keV
+    alpha, beta : float
+        Convergence and collection angles in mrad.
+    Notes:
+    ------
+    For details see Equation 9 in:
+    - Iakoubovskii, K., K. Mitsuishi, Y. Nakayama, and K. Furuya.
+      ‘Thickness Measurements with Electron Energy Loss Spectroscopy’.
+      Microscopy Research and Technique 71, no. 8 (2008): 626–31.
+      https://doi.org/10.1002/jemt.20597.
+    """
+    theta_C = 20  # mrad
+    A = alpha ** 2 + beta ** 2 + 2\
+        * _theta_E(density, beam_energy) ** 2\
+        + np.abs(alpha ** 2 - beta ** 2)
+    B = alpha ** 2 + beta ** 2\
+        + 2 * theta_C ** 2 + np.abs(alpha ** 2 - beta ** 2)
+    correction_factor =\
+        np.log(theta_C ** 2 / _theta_E(density, beam_energy) ** 2)\
+        / np.log(A * theta_C ** 2 / B / _theta_E(density, beam_energy) ** 2)
+    return correction_factor
