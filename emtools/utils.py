@@ -10,6 +10,7 @@ Utilities module for EMTools package
 
 import numpy as np
 import hyperspy.api as hs
+from scipy.signal import convolve2d
 
 e = 1.602e-19       # Charge of electron (Coulombs)
 m0 = 9.109e-31      # Rest mass of electron (kg)
@@ -289,3 +290,22 @@ def get_mean_free_path(mean_Z, beam_energy, beta):
     mean_free_path = 106 * F * beam_energy\
         / (avg_loss * np.log(2 * beta * beam_energy / avg_loss))
     return mean_free_path
+
+
+def estimate_image_noise(image):
+    """
+    Estimates variance of Gaussian noise in an image. It uses the method
+    reported in:
+
+        J. Immerkaer, Computer Vision and Image Understanding, 64 (1996) 300.
+
+    """
+    H, W = image.shape
+
+    M = [[1, -2, 1],
+         [-2, 4, -2],
+         [1, -2, 1]]
+
+    sigma = np.sum(np.sum(np.absolute(convolve2d(image, M))))
+    sigma = sigma * np.sqrt(0.5 * np.pi) / (6 * (W - 2) * (H - 2))
+    return sigma
