@@ -221,6 +221,32 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
     return energy_loss
 
 
+def calc_probe_size(ht, alpha, relativistic=True):
+    """
+    Calculates probe size given voltage and convergence angle
+
+    Args
+    ----------
+    ht : float
+        Accelerating voltage (in kV)
+
+    alpha : float
+        Convergence semi-angle (in mrads)
+
+    relativistic : bool
+        If True, use the relativistically corrected wavelength for the
+        calculation
+
+    Returns
+    ----------
+    probe_size : float
+        Calculated probe diameter (in nanometers)
+    """
+    wavelength = voltage_to_wavelength(ht, relativistic)
+    probe_size = 0.61 * wavelength / alpha / 1000
+    return probe_size
+
+
 def change_units(im, new_units='nm'):
     """
     Change the spatial calibration units of an image.
