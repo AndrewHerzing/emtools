@@ -335,3 +335,27 @@ def estimate_image_noise(image):
     sigma = np.sum(np.sum(np.absolute(convolve2d(image, M))))
     sigma = sigma * np.sqrt(0.5 * np.pi) / (6 * (W - 2) * (H - 2))
     return sigma
+
+
+def calc_depth_of_focus(ht, alpha, relativistic=True):
+    """
+    Estimate the depth of focus for given accelerating voltage and
+    convergence semi-angle.
+
+    Args
+    ----------
+    ht : float
+        Microscope accelerating voltage in kV.
+    alpha : float
+        Convergence semi-angle in mrads.
+    relativistic : bool
+        If True, use the relativistic wavelength.  Default is True
+
+    Returns
+    ----------
+    dof : float
+        Estimated depth of focus in nanometers.
+    """
+    wavelength = voltage_to_wavelength(ht, relativistic)
+    dof = 0.61 * wavelength / alpha
+    return dof
