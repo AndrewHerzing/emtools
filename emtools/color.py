@@ -229,5 +229,6 @@ def merge_color_channels(im_list, color_list=None, normalization='single',
     if return_all_channels:
         for i in color_list:
             images[i] = np.uint8(images[i] * (255 / images[i].max()))
+            return images
     else:
         return images['rgb']
