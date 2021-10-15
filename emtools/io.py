@@ -59,8 +59,8 @@ def axsia_to_hspy(filename, calibration_signal=None, im_shape=None):
 
     axsia_in = loadmat(filename)
     if 'nrows' and 'ncols' in axsia_in.keys():
-        nrows = axsia_in['nrows'][0][0]
-        ncols = axsia_in['ncols'][0][0]
+        nrows = int(axsia_in['nrows'][0][0])
+        ncols = int(axsia_in['ncols'][0][0])
     elif calibration_signal:
         nrows = calibration_signal.data.shape[0]
         ncols = calibration_signal.data.shape[1]
@@ -72,11 +72,11 @@ def axsia_to_hspy(filename, calibration_signal=None, im_shape=None):
             'SVD Decomposition requires definition of image shape')
 
     if 'npures' in axsia_in.keys():
-        npures = axsia_in['npures'][0][0]
+        npures = int(axsia_in['npures'][0][0])
     else:
         npures = axsia_in['purespectra'].shape[1]
     if 'nchannels' in axsia_in.keys():
-        nchannels = axsia_in['nchannels'][0][0]
+        nchannels = int(axsia_in['nchannels'][0][0])
     else:
         nchannels = axsia_in['purespectra'].shape[0]
     loadings = axsia_in['concentrations']
