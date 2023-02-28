@@ -11,6 +11,7 @@ IO module for EMTools package
 from scipy.io import savemat, loadmat
 import numpy as np
 import hyperspy.api as hs
+import matplotlib.animation as animation
 
 
 def save_axsia(s, filename=None):
