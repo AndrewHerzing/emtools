@@ -120,3 +120,64 @@ def axsia_to_hspy(filename, calibration_signal=None, im_shape=None):
             calibration_signal.axes_manager[1].units
 
     return axsia
+
+import numpy as np
+import matplotlib.animation as animation
+from matplotlib import patches
+
+def savemovie(stack, start=0, stop=None, outfile='output.avi', fps=15, dpi=100, title='Series', clim=None, cmap='gray'):
+        """
+        Save the image series as an AVI movie file.
+
+        Args
+        ----------
+        stack : Hyperspy Signal2D
+         Image stack to save as movie
+        start : integer
+         Filename for output. If None, a UI will prompt for a filename.
+        stop : integer
+         Filename for output. If None, a UI will prompt for a filename.
+        outfile : string
+         Filename for output.
+        fps : integer
+         Number of frames per second at which to create the movie.
+        dpi : integer
+         Resolution to save the images in the movie.
+        title : string
+         Title to add at the top of the movie
+        clim : tuple
+         Upper and lower contrast limit to use for movie
+        cmap : string
+         Matplotlib colormap to use for movie
+
+        """
+        if clim is None:
+            clim = [stack.data.min(), stack.data.max()]
+        
+        if stop is None:
+            stop = stack.data.shape[0]
+            
+        fig, ax = plt.subplots(1, figsize=(8, 8))
+
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        if title:
+            ax.set_title(title)
+
+        im = ax.imshow(stack.data[start, :, :], interpolation='none',
+                       cmap=cmap, clim=clim)        
+        fig.tight_layout()
+
+        def update_frame(n):
+            tmp = stack.data[n, :, :]
+            im.set_data(tmp)
+            return im
+
+        frames = np.arange(start, stop, 1)
+
+        ani = animation.FuncAnimation(fig, update_frame, frames)
+
+        writer = animation.writers['ffmpeg'](fps=fps)
+        ani.save(outfile, writer=writer, dpi=dpi)
+        plt.close()
+        return
