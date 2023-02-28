@@ -24,6 +24,28 @@ def get_stackreg_shifts(stack):
                           for i in range(0, len(sr_shifts))])
     return sr_shifts
 
+def register_stack(stack):
+    """
+    Align stack of images using PyStackReg.
+
+    Args
+    ----------
+    stack : Hyperspy Signal2D
+        Image stack to align.
+
+    Returns
+    ----------
+    reg : Hyperspy Signal2D
+        Aligned stack.
+    transforms : NumPy array
+        Calculated alignment shifts.
+
+    """
+    reg = stack.deepcopy()
+    sr = StackReg(StackReg.TRANSLATION)
+    transforms = sr.register_stack(stack.data, axis=0, reference='previous', verbose=True)
+    reg.data = sr.transform_stack(stack.data, transforms)
+    return reg, transforms
 
 def apply_hanning(image):
     """
