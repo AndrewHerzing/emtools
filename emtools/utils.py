@@ -359,3 +359,51 @@ def calc_depth_of_focus(ht, alpha, relativistic=True):
     wavelength = voltage_to_wavelength(ht, relativistic)
     dof = 0.61 * wavelength / alpha
     return dof
+
+
+def calc_dose_pixel(probe_current, pixel_size, dwell_time):
+    """
+    Calculate electron dose given probe current, dwell time, and pixel size.
+
+    Args
+    ---------
+    probe_current : float
+        Probe current in amps
+
+    dwell_time : float
+        Dwell time per pixel in seconds
+
+    pixel_size : float
+        Pixel size in nanometers
+
+    Returns
+    ----------
+    dose : float
+        Calculated electron dose in electrons per square nanometer
+    """
+    dose = 6.242e18 * probe_current * dwell_time / pixel_size**2
+    return dose
+
+
+def calc_dose_probe(probe_current, probe_fwhm, dwell_time):
+    """
+    Calulate electron based on the measured probe size.
+
+    Args
+    ---------
+    probe_current : float
+        Measured probe current in amps
+    probe_fwhm : float
+        Measured probe FWHM in nanometers
+    dwell_time : float
+        Per pixel dwell time in seconds
+
+    Returns
+    ---------
+    dose : float
+        Calculated electron dose in electrons per square nanometer
+
+    """
+    n_electrons = 6.242e18 * probe_current * dwell_time
+    dose = n_electrons / (np.pi * (probe_fwhm / 2)**2)
+    return dose
