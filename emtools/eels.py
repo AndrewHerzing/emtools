@@ -13,7 +13,8 @@ import numpy as np
 from scipy.integrate import quad
 import scipy
 import matplotlib.pylab as plt
-
+import hyperspy.api as hs
+from hyperspy.misc.eels.electron_inelastic_mean_free_path import iMFP_Iakoubovskii, iMFP_angular_correction
 
 def fitsigmatotal(energy, sigma, line=None, plot_results=False):
     """
@@ -524,93 +525,84 @@ def sigpar(z, dl, shell, e0, beta):
     if np.logical_not(((beta**2) > (50 * ec / e0))):
         print('Estimated accuracy = %0.4g %%' % erp)
 
+def calc_Z_eff(composition, elements):
+    Zs = np.array([hs.material.elements[i].General_properties.Z for i in elements])
+    Z_eff = np.sum(composition * Zs**1.3)/np.sum(composition * Zs**0.3)
+    return Z_eff
 
-def _F(electron_energy):
-    return (1 + electron_energy / 1022) / (1 + electron_energy / 511) ** 2
+def calc_mean_energy_loss(Z_eff):
+    return 7.6 * Z_eff**0.36
 
-
-def _theta_E(density, electron_energy):
-    return 5.5 * density ** 0.3 / (_F(electron_energy) * electron_energy)
-
-
-def iMFP_Iakoubovskii(density, electron_energy):
-    """Estimate electron inelastic mean free path from density
-    Parameters:
-    -----------
-    density : float
-        Material density in g/cm**3
-    beam_energy : float
-        Electron beam energy in keV
-    Notes:
-    ------
-    For details see Equation 9 in:
-    - Iakoubovskii, K., K. Mitsuishi, Y. Nakayama, and K. Furuya.
-      ‘Thickness Measurements with Electron Energy Loss Spectroscopy’.
-      Microscopy Research and Technique 71, no. 8 (2008): 626–31.
-      https://doi.org/10.1002/jemt.20597.
-    Returns
-    -------
-    float
-        Inelastic mean free path in nanometers
+def calc_mean_free_path(spec, method='iak', density=None, composition=None, elements=None, correct_beta=True):
     """
-    theta_C = 20  # mrad
-    inv_lambda = 11 * density ** 0.3\
-        / (200 * _F(electron_energy) * electron_energy)\
-        * np.log(theta_C ** 2 / _theta_E(density, electron_energy) ** 2)
-    return 1 / inv_lambda
+    Estimate the mean free path for inelastic scattering.
+    
+    'iak' method uses Hyperspy's iMFP_Iakoubovskii function an is based on equation 9 in: 
+        Iakoubovskii, K., K. Mitsuishi, Y. Nakayama, and K. Furuya.
+        ‘Thickness Measurements with Electron Energy Loss Spectroscopy’.
+        Microscopy Research and Technique 71, no. 8 (2008): 626–31.
+        https://doi.org/10.1002/jemt.20597
 
-
-def iMFP_angular_correction(density, beam_energy, alpha, beta):
-    """Estimate the effect of limited collection angle on EELS mean free path
-    Parameters:
-    -----------
-    density : float
-        Material density in g/cm**3
-    beam_energy : float
-        Electron beam energy in keV
-    alpha, beta : float
-        Convergence and collection angles in mrad.
-    Notes:
-    ------
-    For details see Equation 9 in:
-    - Iakoubovskii, K., K. Mitsuishi, Y. Nakayama, and K. Furuya.
-      ‘Thickness Measurements with Electron Energy Loss Spectroscopy’.
-      Microscopy Research and Technique 71, no. 8 (2008): 626–31.
-      https://doi.org/10.1002/jemt.20597.
-    """
-    theta_C = 20  # mrad
-    A = alpha ** 2 + beta ** 2 + 2\
-        * _theta_E(density, beam_energy) ** 2\
-        + np.abs(alpha ** 2 - beta ** 2)
-    B = alpha ** 2 + beta ** 2\
-        + 2 * theta_C ** 2 + np.abs(alpha ** 2 - beta ** 2)
-    correction_factor =\
-        np.log(theta_C ** 2 / _theta_E(density, beam_energy) ** 2)\
-        / np.log(A * theta_C ** 2 / B / _theta_E(density, beam_energy) ** 2)
-    return correction_factor
-
-def get_mean_free_path(mean_Z, beam_energy, beta):
-    """
-    Estimate the mean free path for inelastic scattering. Based on equations
-    6, 7, and 8 in:
+    'malis' method is based on equations 6, 7, and 8 in:
         T. Malis et al., J. Electron Microsc. Tech. vol. 8 (1988) 193.
+    
+    Collection angle correction adapted from CONCOR2.  Details are in:
+        R.F.Egerton: EELS in the Electron Microscope, 3rd edition, Springer 2011
 
     Args
     ----------
-    mean_Z : float
-        Mean atomic number of specimen.
-    beam_energy : float
-        Electron beam energy in keV.
-    beta : float
-        Collection angle in mrads.
+    spec : Hyperspy EELSSpectrum
+        Low-loss EELS spectrum
+    method : string
+        Either 'iak' or 'malis'
+    density : float
+        Specimen density in g/cm**3. Required for 'iak' method.
+    composition : list or NumPy array
+        Composition of specimen in at.%. Required for 'malis' method.
+    elements : list
+        List of strings giving the element for each composition. Required for 'malis' method.
 
     Returns
     ----------
     mean_free_path : float
         Estimated mean free path.
     """
-    avg_loss = 7.6 * mean_Z**0.36
-    F = (1 + (beam_energy / 1022)) / ((1 + (beam_energy / 511))**2)
-    mean_free_path = 106 * F * beam_energy\
-        / (avg_loss * np.log(2 * beta * beam_energy / avg_loss))
+    beam_energy = spec.metadata.Acquisition_instrument.TEM.beam_energy
+    alpha = spec.metadata.Acquisition_instrument.TEM.convergence_angle
+    beta = spec.metadata.Acquisition_instrument.TEM.Detector.EELS.collection_angle
+
+    theta_C = 20 #mrads
+    F = (1 + (beam_energy / 1022)) / (1 + (beam_energy / 511))**2
+    theta_E = 5.5 * density ** 0.3 / (F * beam_energy)
+
+    if method.lower() == 'iak':
+        if density is None:
+            raise ValueError('For Iakoubovskii method density must be provided')
+        else:
+            numerator = (alpha ** 2 + beta ** 2 + 2 * theta_E**2 + abs(alpha ** 2 - beta ** 2)) * theta_C**2
+            denominator = (alpha ** 2 + beta ** 2 + 2 * theta_C ** 2 + abs(alpha ** 2 - beta ** 2)) * theta_E**2
+            inv_lambda = (11*density**0.3/(200*F*beam_energy)) * np.log(numerator/denominator)
+            mean_free_path = 1/inv_lambda
+
+    elif method.lower() == 'malis':
+        if composition is None or elements is None or beam_energy is None:
+            raise ValueError('For Malis method, the composition and elements must be provided')
+        if len(composition) != len(elements):
+            raise ValueError('Number of compositions inconsistent with number of elements')
+        Z_eff = calc_Z_eff(composition, elements)
+        Em = calc_mean_energy_loss(Z_eff)
+
+        eta1 = np.sqrt((alpha**2 + beta**2 + theta_E**2)**2 - 4. * alpha**2 * beta**2) - alpha**2 - beta**2 - theta_E**2
+        eta2 = 2.*beta**2*np.log(0.5/theta_E**2*(np.sqrt((alpha**2+theta_E**2-beta**2)**2 + 4.*beta**2*theta_E**2)+alpha**2+theta_E**2-beta**2))
+        eta3 = 2.*alpha**2*np.log(0.5/theta_E**2*(np.sqrt((beta**2+theta_E**2-alpha**2)**2 + 4.*alpha**2*theta_E**2)+beta**2+theta_E**2-alpha**2))
+
+        eta=(eta1+eta2+eta3)/alpha**2/np.log(4./theta_E**2)
+        f1=(eta1+eta2+eta3)/2./alpha**2/np.log(1.+beta**2/theta_E**2)
+        f2=f1
+        if alpha>beta:
+            f2 = f1*alpha**2/b2
+        beta_eff = theta_E * np.sqrt(np.exp(f2 * np.log(1.+beta**2/theta_E**2))-1.)
+        beta = beta_eff
+
+        mean_free_path = 106 * F * beam_energy / (Em * np.log(2 * beta_eff * beam_energy / Em))
     return mean_free_path
