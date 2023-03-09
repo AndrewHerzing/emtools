@@ -533,7 +533,7 @@ def calc_Z_eff(composition, elements):
 def calc_mean_energy_loss(Z_eff):
     return 7.6 * Z_eff**0.36
 
-def calc_mean_free_path(spec, method='iak', density=None, composition=None, elements=None, correct_beta=True):
+def calc_mean_free_path(spec, method='iak', density=None, composition=None, elements=None):
     """
     Estimate the mean free path for inelastic scattering.
     
