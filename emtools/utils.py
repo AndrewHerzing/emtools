@@ -290,6 +290,34 @@ def change_units(im, new_units='nm'):
             im.axes_manager[1].scale = im.axes_manager[1].scale / 10
     return im
 
+def calc_mean_z(composition, elements, comp_type='at'):
+    """
+    Calculate the mean atomic number given composition and elements:
+
+    Args
+    ----------
+    composition : list or NumPy array
+        Composition of material in percent
+    elements : list
+        List of strings giving the elements in same order as composition
+    comp_type : str
+        Either 'at' or 'wt' to indicate type of composition provided.  If 'wt',
+        it will be converted to 'at' for the calculation
+
+    Returns
+    ----------
+    Zmean : float
+        Mean atomic number
+
+    """
+    Zs = np.array([hs.material.elements[i].General_properties.Z for i in elements])
+    if comp_type == 'at':
+        Zmean = np.sum(np.array([12,14,20,26,8,18]) * atomics/100)
+    elif comp_type == 'wt':
+        atomics = hs.material.weight_to_atomic(composition, elements)
+        Zmean = np.sum(np.array([12,14,20,26,8,18]) * atomics/100)        
+    return Zmean
+
 
 def estimate_image_noise(image):
     """

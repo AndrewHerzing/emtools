@@ -588,3 +588,29 @@ def iMFP_angular_correction(density, beam_energy, alpha, beta):
         np.log(theta_C ** 2 / _theta_E(density, beam_energy) ** 2)\
         / np.log(A * theta_C ** 2 / B / _theta_E(density, beam_energy) ** 2)
     return correction_factor
+
+def get_mean_free_path(mean_Z, beam_energy, beta):
+    """
+    Estimate the mean free path for inelastic scattering. Based on equations
+    6, 7, and 8 in:
+        T. Malis et al., J. Electron Microsc. Tech. vol. 8 (1988) 193.
+
+    Args
+    ----------
+    mean_Z : float
+        Mean atomic number of specimen.
+    beam_energy : float
+        Electron beam energy in keV.
+    beta : float
+        Collection angle in mrads.
+
+    Returns
+    ----------
+    mean_free_path : float
+        Estimated mean free path.
+    """
+    avg_loss = 7.6 * mean_Z**0.36
+    F = (1 + (beam_energy / 1022)) / ((1 + (beam_energy / 511))**2)
+    mean_free_path = 106 * F * beam_energy\
+        / (avg_loss * np.log(2 * beta * beam_energy / avg_loss))
+    return mean_free_path
