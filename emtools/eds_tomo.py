@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-EDS Tomography module for EMTools package
+EDS Tomography module for EMTools package.
 
 @author: Andrew Herzing
 """

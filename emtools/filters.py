@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-Filters module for EMTools package
+Filters module for EMTools package.
 
 @author: Andrew Herzing
 """
@@ -63,7 +63,7 @@ def butter_bpf(image, d_low, d_high, n=1):
 
 def cross_corr(im1, im2):
     """
-    Cross correlate to input images and display the result
+    Cross correlate to input images and display the result.
 
     Args
     ----------
@@ -80,7 +80,7 @@ def cross_corr(im1, im2):
 
 def band_filter(data, in_radius=9, out_radius=60):
     """
-    Apply a band-pass filter to an image
+    Apply a band-pass filter to an image.
 
     Args
     ----------
@@ -96,7 +96,6 @@ def band_filter(data, in_radius=9, out_radius=60):
     out : Hyperspy Signal2D or TomoStack
         Filtered copy of the input data
     """
-
     out = data.deepcopy()
     im = data.data
 

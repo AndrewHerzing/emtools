@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of EMTools
+
+"""
+Alignment module for EMTools package.
+
+@author: Andrew Herzing
+"""
+
+
 import numpy as np
 import hyperspy.api as hs
 from pystackreg import StackReg
@@ -24,6 +35,7 @@ def get_stackreg_shifts(stack):
                           for i in range(0, len(sr_shifts))])
     return sr_shifts
 
+
 def register_stack(stack):
     """
     Align stack of images using PyStackReg.
@@ -46,6 +58,7 @@ def register_stack(stack):
     transforms = sr.register_stack(stack.data, axis=0, reference='previous', verbose=True)
     reg.data = sr.transform_stack(stack.data, transforms)
     return reg, transforms
+
 
 def apply_hanning(image):
     """
@@ -85,7 +98,6 @@ def apply_taper(image, taper_percent):
         Image with tapered edge pixels.
 
     """
-
     width = np.int32(np.round(taper_percent / 100 * image.data.shape[0]))
     image.data = np.pad(image.data, pad_width=width, mode='linear_ramp')
     return image
@@ -121,7 +133,6 @@ def get_ps(s, crop=True, hanning=True, taper=False, taper_percent=3,
         Power spectrum of the input image
 
     """
-
     image = s.deepcopy()
     if hanning:
         image = apply_hanning(image)

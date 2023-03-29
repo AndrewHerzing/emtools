@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# This file is part of EMTools
+# This file is part of EMTools.
 
 """
-Utilities module for EMTools package
+Utilities module for EMTools package.
 
 @author: Andrew Herzing
 """
@@ -22,7 +22,7 @@ Na = 6.0221409e23   # Avogadro's number
 
 def mrads_to_hkl(angle, voltage):
     """
-    Convert from an diffraction angle (mrads) to lattice spacing (nm)
+    Convert from an diffraction angle (mrads) to lattice spacing (nm).
 
     Args
     ----------
@@ -36,7 +36,6 @@ def mrads_to_hkl(angle, voltage):
     d : float
         Lattice spacing in nanometers
     """
-
     wavelength = voltage_to_wavelength(300, True)
     d = wavelength / (2 * np.sin(angle / 1000))
     return d
@@ -44,7 +43,7 @@ def mrads_to_hkl(angle, voltage):
 
 def mrads_to_k(angle, voltage):
     """
-    Convert from an angular measurement (mrads) to reciprocal space (nm^-1)
+    Convert from an angular measurement (mrads) to reciprocal space (nm^-1).
 
     Args
     ----------
@@ -65,7 +64,7 @@ def mrads_to_k(angle, voltage):
 
 def k_to_mrads(k, voltage):
     """
-    Convert from a reciprocal space (nm^-1) value an angular value (mrads)
+    Convert from a reciprocal space (nm^-1) value an angular value (mrads).
 
     Args
     ----------
@@ -86,7 +85,7 @@ def k_to_mrads(k, voltage):
 
 def voltage_to_wavelength(voltage, relativistic=False):
     """
-    Calculates electron wavelength given voltage
+    Calculate electron wavelength given voltage.
 
     Args
     ----------
@@ -111,7 +110,7 @@ def voltage_to_wavelength(voltage, relativistic=False):
 
 def get_relativistic_mass(voltage):
     """
-    Calculates relativistic mass given voltage
+    Calculate relativistic mass given voltage.
 
     Args
     ----------
@@ -129,7 +128,7 @@ def get_relativistic_mass(voltage):
 
 def get_atom_mass(element):
     """
-    Calculate the mass of an atom of a given element
+    Calculate the mass of an atom of a given element.
 
     Args
     ----------
@@ -149,7 +148,7 @@ def get_atom_mass(element):
 
 def calc_rutherford_energy_loss(energy, element, theta, relativistic=False):
     """
-    Calculate the energy loss due to Rutherford scattering
+    Calculate the energy loss due to Rutherford scattering.
 
     Uses the impulse approximation as calculated in:
 
@@ -171,7 +170,6 @@ def calc_rutherford_energy_loss(energy, element, theta, relativistic=False):
     energy_loss : float or array
         Energy lost due to scattering to angle theta (in eV)
     """
-
     theta = 1000 * theta * np.pi / 180
     atom_mass = get_atom_mass(element)
     if relativistic:
@@ -186,7 +184,7 @@ def calc_rutherford_energy_loss(energy, element, theta, relativistic=False):
 
 def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
     """
-    Calculate the energy loss due to Rutherford backscattering
+    Calculate the energy loss due to Rutherford backscattering.
 
     Uses the equation in:
 
@@ -208,7 +206,6 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
     energy_loss : float or array
         Energy lost due to scattering to angle theta (in eV)
     """
-
     theta = 1000 * theta * np.pi / 180
     atom_mass = get_atom_mass(element)
     if relativistic:
@@ -223,7 +220,7 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
 
 def calc_probe_size(ht, alpha, relativistic=True):
     """
-    Calculates probe size given voltage and convergence angle
+    Calculate probe size given voltage and convergence angle.
 
     Args
     ----------
@@ -263,7 +260,6 @@ def change_units(im, new_units='nm'):
     im_changed : Hyperspy Signal2D
         Copy of input image with units changed.
     """
-
     if im.axes_manager[0].units == new_units:
         return im
     elif new_units == 'A':
@@ -290,9 +286,10 @@ def change_units(im, new_units='nm'):
             im.axes_manager[1].scale = im.axes_manager[1].scale / 10
     return im
 
+
 def calc_mean_z(composition, elements, comp_type='at'):
     """
-    Calculate the mean atomic number given composition and elements:
+    Calculate the mean atomic number given composition and elements.
 
     Args
     ----------
@@ -312,19 +309,21 @@ def calc_mean_z(composition, elements, comp_type='at'):
     """
     Zs = np.array([hs.material.elements[i].General_properties.Z for i in elements])
     if comp_type == 'at':
-        Zmean = np.sum(np.array([12,14,20,26,8,18]) * atomics/100)
+        atom_fracs = composition
+        Zmean = np.sum(Zs * atom_fracs / 100)
     elif comp_type == 'wt':
-        atomics = hs.material.weight_to_atomic(composition, elements)
-        Zmean = np.sum(np.array([12,14,20,26,8,18]) * atomics/100)        
+        atom_fracs = hs.material.weight_to_atomic(composition, elements)
+        Zmean = np.sum(Zs * atom_fracs / 100)
     return Zmean
 
 
 def estimate_image_noise(image):
     """
-    Estimates variance of Gaussian noise in an image. It uses the method
-    reported in:
+    Estimates variance of Gaussian noise in an image.
 
-        J. Immerkaer, Computer Vision and Image Understanding, 64 (1996) 300.
+    Uses the method reported in:
+
+    J. Immerkaer, Computer Vision and Image Understanding, 64 (1996) 300.
 
     """
     H, W = image.shape
@@ -340,8 +339,7 @@ def estimate_image_noise(image):
 
 def calc_depth_of_focus(ht, alpha, relativistic=True):
     """
-    Estimate the depth of focus for given accelerating voltage and
-    convergence semi-angle.
+    Estimate the depth of focus for given accelerating voltage and convergence semi-angle.
 
     Args
     ----------

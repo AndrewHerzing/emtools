@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-__init__.py file for EMTools package
+__init__.py file for EMTools package.
 
 @author: Andrew Herzing
 """

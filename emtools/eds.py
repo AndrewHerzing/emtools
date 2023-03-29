@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-EDS module for EMTools package
+EDS module for EMTools package.
 
 @author: Andrew Herzing
 """
@@ -18,7 +18,7 @@ datapath = imp.find_module("emtools")[1] + "/data/"
 
 def get_test_spectrum(material='2063a'):
     """
-    Load a reference spectrum from a chosen test material
+    Load a reference spectrum from a chosen test material.
 
     Args
     -----
@@ -42,7 +42,7 @@ def get_test_spectrum(material='2063a'):
 
 def get_detector_efficiency(detector_name):
     """
-    Reads detecor efficiency from database
+    Read detecor efficiency from database.
 
     Args
     -----
@@ -62,9 +62,7 @@ def get_detector_efficiency(detector_name):
                          "Must be one of the following: "
                          "%s" % (detector_name, ', '.join(detectors)))
 
-    detector_efficiency = np.loadtxt(datapath +
-                                     detector_name +
-                                     '_DetectorEfficiencyCurve.txt')
+    detector_efficiency = np.loadtxt(datapath + detector_name + '_DetectorEfficiencyCurve.txt')
     detector_efficiency = hs.signals.Signal1D(detector_efficiency)
     detector_efficiency.axes_manager[0].name = 'Energy'
     detector_efficiency.axes_manager[0].units = 'keV'
@@ -72,8 +70,7 @@ def get_detector_efficiency(detector_name):
     return detector_efficiency
 
 
-def calc_zeta_factor(spec, element, line, thickness, i_probe=None,
-                     live_time=None, windows=None, line_width=[5.0, 2.0]):
+def calc_zeta_factor(spec, element, line, thickness, i_probe=None, live_time=None, windows=None, line_width=[5.0, 2.0]):
     """
     Calculate Zeta factor from a spectrum.
 
@@ -101,7 +98,6 @@ def calc_zeta_factor(spec, element, line, thickness, i_probe=None,
     zeta : float
         Calculated Zeta factor
     """
-
     electrons_per_coulomb = 6.242e18
     if element not in spec.metadata.Sample.elements:
         spec.add_elements([element, ])
@@ -125,8 +121,7 @@ def calc_zeta_factor(spec, element, line, thickness, i_probe=None,
         else:
             raise ValueError('Live-time not specified in metadata')
 
-    zeta = (rho * thickness * electrons_per_coulomb *
-            i_probe * live_time) / counts
+    zeta = (rho * thickness * electrons_per_coulomb * i_probe * live_time) / counts
     return zeta
 
 
@@ -264,13 +259,10 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
     bckgsingle = bckgavg / spec.isig[6.1 - 2 * fwtm:6.1].data.shape[0]
 
     totalpb = ni_ka / bckgavg
-    sigma_total = totalpb * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                    (np.sqrt(bckgavg) / bckgavg)**2)
+    sigma_total = totalpb * np.sqrt((sigma_ni_ka / ni_ka)**2 + (np.sqrt(bckgavg) / bckgavg)**2)
 
     fiori = ni_ka / bckgsingle
-    sigma_fiori = fiori * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                  (np.sqrt(bckg1) / bckg1)**2 +
-                                  (np.sqrt(bckg2) / bckg2)**2)
+    sigma_fiori = fiori * np.sqrt((sigma_ni_ka / ni_ka)**2 + (np.sqrt(bckg1) / bckg1)**2 + (np.sqrt(bckg2) / bckg2)**2)
 
     results['FioriPB'] = {}
     results['FioriPB']['Value'] = fiori
@@ -281,13 +273,11 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
 
     # Hole Count
     holecount_mo = ni_ka / mo_ka
-    sigma_mo = holecount_mo * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                      (sigma_mo_ka / mo_ka)**2)
+    sigma_mo = holecount_mo * np.sqrt((sigma_ni_ka / ni_ka)**2 + (sigma_mo_ka / mo_ka)**2)
 
     holecount_fe = ni_ka / fe_ka
     sigma_fe = holecount_fe *\
-        np.sqrt((sigma_ni_ka / model.components.Ni_Ka.A.value)**2 +
-                (sigma_fe_ka / fe_ka)**2)
+        np.sqrt((sigma_ni_ka / model.components.Ni_Ka.A.value)**2 + (sigma_fe_ka / fe_ka)**2)
 
     results['HoleCount'] = {}
     results['HoleCount']['MoKa'] = {}
@@ -296,8 +286,7 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
 
     # Mo K to L Ratio
     mo_kl_ratio = mo_ka / mo_la
-    sigma_mo_kl = mo_kl_ratio * np.sqrt((sigma_mo_ka / mo_ka)**2 +
-                                        (sigma_mo_la / mo_la)**2)
+    sigma_mo_kl = mo_kl_ratio * np.sqrt((sigma_mo_ka / mo_ka)**2 + (sigma_mo_la / mo_la)**2)
 
     results['MoKL_Ratio'] = {}
     results['MoKL_Ratio']['Value'] = mo_kl_ratio
@@ -305,14 +294,10 @@ def niox(spec, thickness=59, live_time=None, tilt=0, thickness_error=None,
 
     # Solid Angle and Efficiency
     omega = 4 * np.pi * (ni_ka + ni_kb) / (n_atoms * sigma_ni * w_ni * dose)
-    sigma_omega = omega * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                  (sigma_ni_kb / ni_kb)**2 +
-                                  (thickness_error / thickness)**2)
+    sigma_omega = omega * np.sqrt((sigma_ni_ka / ni_ka)**2 + (sigma_ni_kb / ni_kb)**2 + (thickness_error / thickness)**2)
 
     efficiency = (ni_ka + ni_kb) / (live_time * i_probe * 1e9 * omega)
-    sigma_efficiency = efficiency * np.sqrt((sigma_ni_ka / ni_ka)**2 +
-                                            (sigma_ni_kb / ni_kb)**2 +
-                                            (sigma_omega / omega)**2)
+    sigma_efficiency = efficiency * np.sqrt((sigma_ni_ka / ni_ka)**2 + (sigma_ni_kb / ni_kb)**2 + (sigma_omega / omega)**2)
     results['Omega'] = {}
     results['Omega']['Value'] = omega
     results['Omega']['Sigma'] = sigma_omega
@@ -407,7 +392,7 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
                           energy_resolution=135, energy_per_channel=0.01,
                           beam_energy=300):
     """
-    Simulate a simple XEDS spectrum containing K-lines
+    Simulate a simple XEDS spectrum containing K-lines.
 
     Args
     ------
@@ -424,7 +409,6 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
     beam_energy : float
         Beam energy in keV to use in the simulated spectrum.
     """
-
     if not ka_amplitude:
         ka_amplitude = 1000 * np.ones(len(elements))
 
@@ -457,9 +441,7 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
             amplitude = weight * ka_amplitude[count]
             sigma = 0.001 * energy_resolution / (2 * np.sqrt(2 * np.log(2)))
 
-            peak = (amplitude / (sigma * np.sqrt(2 * np.pi))
-                    * np.exp(-(x_axis - energy)**2
-                    / (2 * sigma**2)))
+            peak = (amplitude / (sigma * np.sqrt(2 * np.pi)) * np.exp(-(x_axis - energy)**2 / (2 * sigma**2)))
 
             spec.data += peak
         count += 1
@@ -468,7 +450,7 @@ def simulate_eds_spectrum(elements, ka_amplitude=None, nchannels=2048,
 
 class QuantSpec:
     """
-    Class to create materials with provided composition
+    Class to create materials with provided composition.
 
     Attributes
     -----
@@ -499,11 +481,12 @@ class QuantSpec:
         Zeta factor for each element
 
     """
+
     def __init__(self, spec, material, beam_energy=None, thickness=None,
                  thickness_sigma=None, live_time=None, probe_current=None,
                  specimen_tilt=None):
         """
-        Constructor for Material class.
+        Construct an instance of the Material class.
 
         Args
         -----
@@ -578,8 +561,7 @@ class QuantSpec:
         else:
             raise ValueError('Beam energy is not defined')
 
-        self.electron_dose = (self.probe_current * 1e-9
-                              * self.live_time / 1.6e-19)
+        self.electron_dose = (self.probe_current * 1e-9 * self.live_time / 1.6e-19)
         if material == 'NiOx':
             self.elements = ['Ni', 'O']
             self.xray_lines = {'Ni_Ka': {'w': np.nan, 'sigma': np.nan},
@@ -652,7 +634,7 @@ class QuantSpec:
 
     def get_xray_line_properties(self):
         """
-        Retrieves fundamental parameters for each line from database files.
+        Retrieve fundamental parameters for each line from database files.
 
         Includes ionization cross-sections and fluorescence yeild values for
         each line extracted from DTSA-2, available at:
@@ -674,9 +656,7 @@ class QuantSpec:
         if not self.xray_lines:
             raise ValueError('No X-ray lines defined!')
         fluor_yield = np.loadtxt(datapath + 'FluorescenceYield.txt')
-        sigma = np.loadtxt(datapath +
-                           "AbsoluteIonizationCrossSection" +
-                           "BoteSalvat2008_KShell_%skeV.txt" %
+        sigma = np.loadtxt(datapath + "AbsoluteIonizationCrossSection" + "BoteSalvat2008_KShell_%skeV.txt" %
                            str(self.beam_energy))
         for i in self.xray_lines:
             element = i.split('_')[0]
@@ -687,10 +667,7 @@ class QuantSpec:
         return
 
     def get_atoms_per_gram(self):
-        """
-        Calculates atomic number density per gram for the material.
-
-        """
+        """Calculate atomic number density per gram for the material."""
         total_atoms_per_gram = 0
         for i in self.composition_by_mass:
             total_atoms_per_gram +=\
@@ -701,10 +678,7 @@ class QuantSpec:
         return total_atoms_per_gram
 
     def get_molar_mass(self):
-        """
-        Calculates the molar mass for the material.
-
-        """
+        """Calculate the molar mass for the material."""
         molar_mass = 0
         for i in self.composition_by_atom:
             molar_mass +=\
@@ -714,57 +688,34 @@ class QuantSpec:
         return molar_mass
 
     def wt_to_at(self):
-        """
-        Converts composition by mass to composition by atom.
-
-        """
+        """Convert composition by mass to composition by atom."""
         composition_by_atom = {}
         for i in self.composition_by_mass:
-            atoms = (self.composition_by_mass[i]['mass_fraction']
-                     / hs.material.elements[i]
-                                  .General_properties
-                                  .atomic_weight
-                     * 6.02e23)
+            atoms = (self.composition_by_mass[i]['mass_fraction'] / hs.material.elements[i].General_properties.atomic_weight * 6.02e23)
             atom_fraction = atoms / self.total_atoms_per_gram
             composition_by_atom[i] = {'atom_fraction': atom_fraction}
         return composition_by_atom
 
     def at_to_wt(self):
-        """
-        Converts composition by atom to composition by mass.
-
-        """
+        """Convert composition by atom to composition by mass."""
         composition_by_mass = {}
         for i in self.composition_by_atom:
-            mass = (100 * self.composition_by_atom[i]['atom_fraction']
-                    * hs.material.elements[i]
-                                 .General_properties
-                                 .atomic_weight)
+            mass = (100 * self.composition_by_atom[i]['atom_fraction'] * hs.material.elements[i].General_properties.atomic_weight)
             mass_fraction = mass / self.molar_mass
             composition_by_mass[i] = {'mass_fraction': mass_fraction,
                                       'sigma': np.nan}
         return composition_by_mass
 
     def get_atoms_per_volume(self, element):
-        """
-        Calculates the number of atoms per volume of an element in the material
-
-        """
+        """Calculate the number of atoms per volume of an element in the material."""
         mass_frac = self.composition_by_mass[element]['mass_fraction']
-        atomic_weight = hs.material.elements[element]\
-            .General_properties\
-            .atomic_weight
-        atoms_per_volume = (6.02e23
-                            * mass_frac / atomic_weight
-                            * self.density)
+        atomic_weight = hs.material.elements[element].General_properties.atomic_weight
+        atoms_per_volume = (6.02e23 * mass_frac / atomic_weight * self.density)
         return atoms_per_volume
 
     def get_intensities(self, method='model', verbose=False,
                         plot_results=False):
-        """
-        Extract peak intensities.
-
-        """
+        """Extract peak intensities."""
         spec = self.spec.deepcopy()
         spec.set_elements([])
         spec.set_lines([])
@@ -939,9 +890,7 @@ class QuantSpec:
                                  .Atomic_properties\
                                  .Xray_lines[lines[i]]\
                                  .energy_keV
-        eff_thickness = self.thickness / np.cos(np.pi
-                                                * self.specimen_tilt
-                                                / 180)
+        eff_thickness = self.thickness / np.cos(np.pi * self.specimen_tilt / 180)
         fluor_yield = self.xray_lines[xray_lines[0]]['w']
         sigma = self.xray_lines[xray_lines[0]]['sigma'] * 1e4
         n_atoms = self.get_atoms_per_volume(element) *\
@@ -974,7 +923,7 @@ class QuantSpec:
 
     def calc_zeta_factor(self, plot_result=False, verbose=False):
         """
-        Calculate Zeta factor from a spectrum collected from 2063a SRM
+        Calculate Zeta factor from a spectrum collected from 2063a SRM.
 
         Args
         ------
@@ -1010,10 +959,7 @@ class QuantSpec:
             counts = self.intensities[lines[i]]['counts']
             zeta = rho * eff_thickness * 1e-9 * mass_fraction * dose / counts
 
-            zeta_sigma = np.sqrt((uncertainty / mass_fraction)**2
-                                 + (2 * np.sqrt(counts) / counts)**2
-                                 + (thickness_sigma / eff_thickness)**2
-                                 + (rho_sigma / rho)**2) * zeta
+            zeta_sigma = np.sqrt((uncertainty / mass_fraction)**2 + (2 * np.sqrt(counts) / counts)**2 + (thickness_sigma / eff_thickness)**2 + (rho_sigma / rho)**2) * zeta
 
             zeta_factor_results[lines[i]] = {'zeta_factor': zeta,
                                              'zeta_factor_sigma':

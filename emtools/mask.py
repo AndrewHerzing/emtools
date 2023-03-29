@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-Masking module for EMTools package
+Masking module for EMTools package.
 
 @author: Andrew Herzing
 """
@@ -69,10 +69,6 @@ def display_masks(im, masks, mask_alpha=0.5, log=True, im_min=8, im_max=11):
         Minimum value for image display
     im_max : float
         Maximum value for image display
-
-    Returns
-    ----------
-
     """
     nmasks = len(masks)
     levels = np.linspace(2, 9, nmasks)

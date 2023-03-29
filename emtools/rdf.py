@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-RDF module for EMTools package
+RDF module for EMTools package.
 
 @author: Andrew Herzing
 """

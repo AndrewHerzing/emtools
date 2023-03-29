@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-Colors module for EMTools package
+Colors module for EMTools package.
 
 @author: Andrew Herzing
 """
@@ -33,7 +33,7 @@ just_blue = mpl.colors.\
 
 def normalize(image):
     """
-    Simple function to normalize an image between 0 and 255.
+    Normalize an image between 0 and 255.
 
     Args
     ----------

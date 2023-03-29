@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-EELS module for EMTools package
+EELS module for EMTools package.
 
 @author: Andrew Herzing
 """
@@ -14,11 +14,11 @@ from scipy.integrate import quad
 import scipy
 import matplotlib.pylab as plt
 import hyperspy.api as hs
-from hyperspy.misc.eels.electron_inelastic_mean_free_path import iMFP_Iakoubovskii, iMFP_angular_correction
+
 
 def fitsigmatotal(energy, sigma, line=None, plot_results=False):
     """
-    Determine total cross-section via asymptotic fitting
+    Determine total cross-section via asymptotic fitting.
 
     Args
     ----------
@@ -57,7 +57,7 @@ def fitsigmatotal(energy, sigma, line=None, plot_results=False):
 
 def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
     """
-    Calculate the K-shell ionization cross-section as a function of energy
+    Calculate the K-shell ionization cross-section as a function of energy.
 
     Python implementation of Matlab code from R. F. Egerton at:
     http://www.tem-eels.ca/egerton-laser/programs/SIGMAKL-instructions.htm
@@ -91,7 +91,6 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
         Calculated cross-section values (cm^2 per atom)
 
     """
-
     if verbose:
         print('---------------Sigma-K----------------\n')
         print('Atomic number Z : %s' % z)
@@ -171,7 +170,7 @@ def sigmak(z=None, ek=None, delta=None, e0=None, beta=None, verbose=True):
 
 def gos_k(E, qa02, z):
     """
-    Calculate DF/DE (per eV and per atom) for K-shell
+    Calculate DF/DE (per eV and per atom) for K-shell.
 
     Note: quad function only works with qa02 due to IF statements in function
 
@@ -212,8 +211,7 @@ def gos_k(E, qa02, z):
     else:
         # SUM OVER EQUIVALENT BOUND STATES:
         d = 1
-        y = (-1 / akh * np.log((q + 1 - kh2 + 2 * akh) /
-                               (q + 1 - kh2 - 2 * akh)))
+        y = (-1 / akh * np.log((q + 1 - kh2 + 2 * akh) / (q + 1 - kh2 - 2 * akh)))
         c = np.exp(y)
 
     a = ((q - kh2 + 1) ** 2 + 4. * kh2) ** 3
@@ -224,7 +222,7 @@ def gos_k(E, qa02, z):
 
 def sigmal(z=None, delta=None, e0=None, beta=None, verbose=True):
     """
-    Calculate the L-shell ionization cross-scetion as function of energy
+    Calculate the L-shell ionization cross-scetion as function of energy.
 
     Python implementation of Matlab code from R. F. Egerton at:
     http://www.tem-eels.ca/
@@ -257,7 +255,6 @@ def sigmal(z=None, delta=None, e0=None, beta=None, verbose=True):
         Calculated cross-section values (cm^2 per atom)
 
     """
-
     IE3 = [73, 99, 135, 164, 200, 245, 294, 347, 402, 455, 513, 575,
            641, 710, 779, 855, 931, 1021, 1115, 1217, 1323, 1436, 1550, 1675]
 
@@ -333,7 +330,7 @@ def sigmal(z=None, delta=None, e0=None, beta=None, verbose=True):
 
 def gos_l(E, qa02, z):
     """
-    Calculate DF/DE (per eV and per atom) for L-shell
+    Calculate DF/DE (per eV and per atom) for L-shell.
 
     Note: quad function only works with qa02 due to IF statements in function
 
@@ -354,7 +351,7 @@ def gos_l(E, qa02, z):
     IE1 = [118, 149, 189, 229, 270, 320, 377, 438, 500, 564, 628, 695,
            769, 846, 926, 1008, 1096, 1194, 1142, 1248, 1359, 1476, 1596, 1727]
 
-    if(not np.isscalar(E) or not np.isscalar(z)):
+    if not np.isscalar(E) or not np.isscalar(z):
         raise ValueError('gosfunc: E and z input parameters must be scalar')
 
     r = 13.606
@@ -375,9 +372,7 @@ def gos_l(E, qa02, z):
         c = np.exp((-2 / akh) * bp)
     else:
         d = 1
-        c = np.exp((-1 / akh)
-                   * np.log((q + 0.25 - kh2 + akh)
-                            / (q + 0.25 - kh2 - akh)))
+        c = np.exp((-1 / akh) * np.log((q + 0.25 - kh2 + akh) / (q + 0.25 - kh2 - akh)))
 
     if E - el1 <= 0:
         g = 2.25 * q**4 - (0.75 + 3 * kh2) * q**3 \
@@ -396,7 +391,7 @@ def gos_l(E, qa02, z):
         a = ((q - kh2 + 0.25)**2 + kh2)**4
 
     rf = ((E + 0.1 - el3) / 1.8 / z / z)**u
-    if(np.abs(iz - 11) <= 5 and E - el3 <= 20):
+    if (np.abs(iz - 11) <= 5) and (E - el3 <= 20):
         rf = 1
 
     out = rf * 32 * g * c / a / d * E / r / r / zs**4
@@ -404,8 +399,8 @@ def gos_l(E, qa02, z):
 
 
 def sigpar(z, dl, shell, e0, beta):
-    '''
-    Calculate parameterized partial cross section of major ionization edge
+    """
+    Calculate parameterized partial cross section of major ionization edge.
 
     Python implementation of Matlab code from R. F. Egerton at:
     http://www.tem-eels.ca/
@@ -434,19 +429,17 @@ def sigpar(z, dl, shell, e0, beta):
         half the Bethe ridge angle (outside the dipole region), a warning is
         given.
 
-    '''
+    """
 
     def fdcalc(dl, f50, f100, f200):
-        '''
-        Calculate f(delta) values
-        '''
+        """Calculate f(delta) values."""
         if dl <= 50:
             fd = f50 * dl / 50
 
-        elif((dl > 50) and (dl < 100)):
+        elif (dl > 50) and (dl < 100):
             fd = f50 + (dl - 50) / 50 * (f100 - f50)
 
-        elif((dl >= 100) and (dl < 250)):
+        elif (dl >= 100) and (dl < 250):
             fd = f100 + (dl - 100) / 100 * (f200 - f100)
         return fd
 
@@ -525,19 +518,24 @@ def sigpar(z, dl, shell, e0, beta):
     if np.logical_not(((beta**2) > (50 * ec / e0))):
         print('Estimated accuracy = %0.4g %%' % erp)
 
+
 def calc_Z_eff(composition, elements):
+    """Calculate effective atomoic number."""
     Zs = np.array([hs.material.elements[i].General_properties.Z for i in elements])
-    Z_eff = np.sum(composition * Zs**1.3)/np.sum(composition * Zs**0.3)
+    Z_eff = np.sum(composition * Zs**1.3) / np.sum(composition * Zs**0.3)
     return Z_eff
 
+
 def calc_mean_energy_loss(Z_eff):
+    """Calculate the mean energy loss."""
     return 7.6 * Z_eff**0.36
+
 
 def calc_mean_free_path(spec, method='iak', density=None, composition=None, elements=None):
     """
     Estimate the mean free path for inelastic scattering.
-    
-    'iak' method uses Hyperspy's iMFP_Iakoubovskii function an is based on equation 9 in: 
+
+    'iak' method is based on equation 9 in:
         Iakoubovskii, K., K. Mitsuishi, Y. Nakayama, and K. Furuya.
         ‘Thickness Measurements with Electron Energy Loss Spectroscopy’.
         Microscopy Research and Technique 71, no. 8 (2008): 626–31.
@@ -545,7 +543,7 @@ def calc_mean_free_path(spec, method='iak', density=None, composition=None, elem
 
     'malis' method is based on equations 6, 7, and 8 in:
         T. Malis et al., J. Electron Microsc. Tech. vol. 8 (1988) 193.
-    
+
     Collection angle correction adapted from CONCOR2.  Details are in:
         R.F.Egerton: EELS in the Electron Microscope, 3rd edition, Springer 2011
 
@@ -571,7 +569,7 @@ def calc_mean_free_path(spec, method='iak', density=None, composition=None, elem
     alpha = spec.metadata.Acquisition_instrument.TEM.convergence_angle
     beta = spec.metadata.Acquisition_instrument.TEM.Detector.EELS.collection_angle
 
-    theta_C = 20 #mrads
+    theta_C = 20  # mrads
     F = (1 + (beam_energy / 1022)) / (1 + (beam_energy / 511))**2
     theta_E = 5.5 * density ** 0.3 / (F * beam_energy)
 
@@ -579,10 +577,10 @@ def calc_mean_free_path(spec, method='iak', density=None, composition=None, elem
         if density is None:
             raise ValueError('For Iakoubovskii method density must be provided')
         else:
-            numerator = (alpha ** 2 + beta ** 2 + 2 * theta_E**2 + abs(alpha ** 2 - beta ** 2)) * theta_C**2
+            numerator = (alpha ** 2 + beta ** 2 + 2 * theta_E**2 + abs(alpha**2 - beta ** 2)) * theta_C**2
             denominator = (alpha ** 2 + beta ** 2 + 2 * theta_C ** 2 + abs(alpha ** 2 - beta ** 2)) * theta_E**2
-            inv_lambda = (11*density**0.3/(200*F*beam_energy)) * np.log(numerator/denominator)
-            mean_free_path = 1/inv_lambda
+            inv_lambda = (11 * density**0.3 / (200 * F * beam_energy)) * np.log(numerator / denominator)
+            mean_free_path = 1 / inv_lambda
 
     elif method.lower() == 'malis':
         if composition is None or elements is None or beam_energy is None:
@@ -593,15 +591,15 @@ def calc_mean_free_path(spec, method='iak', density=None, composition=None, elem
         Em = calc_mean_energy_loss(Z_eff)
 
         eta1 = np.sqrt((alpha**2 + beta**2 + theta_E**2)**2 - 4. * alpha**2 * beta**2) - alpha**2 - beta**2 - theta_E**2
-        eta2 = 2.*beta**2*np.log(0.5/theta_E**2*(np.sqrt((alpha**2+theta_E**2-beta**2)**2 + 4.*beta**2*theta_E**2)+alpha**2+theta_E**2-beta**2))
-        eta3 = 2.*alpha**2*np.log(0.5/theta_E**2*(np.sqrt((beta**2+theta_E**2-alpha**2)**2 + 4.*alpha**2*theta_E**2)+beta**2+theta_E**2-alpha**2))
+        eta2 = 2. * beta**2 * np.log(0.5 / theta_E**2 * (np.sqrt((alpha**2 + theta_E**2 - beta**2)**2 + 4. * beta**2 * theta_E**2) + alpha**2 + theta_E**2 - beta**2))
+        eta3 = 2. * alpha**2 * np.log(0.5 / theta_E**2 * (np.sqrt((beta**2 + theta_E**2 - alpha**2)**2 + 4. * alpha**2 * theta_E**2) + beta**2 + theta_E**2 - alpha**2))
 
-        eta=(eta1+eta2+eta3)/alpha**2/np.log(4./theta_E**2)
-        f1=(eta1+eta2+eta3)/2./alpha**2/np.log(1.+beta**2/theta_E**2)
-        f2=f1
-        if alpha>beta:
-            f2 = f1*alpha**2/b2
-        beta_eff = theta_E * np.sqrt(np.exp(f2 * np.log(1.+beta**2/theta_E**2))-1.)
+        # eta = (eta1 + eta2 + eta3) / alpha**2 / np.log(4. / theta_E**2)
+        f1 = (eta1 + eta2 + eta3) / 2. / alpha**2 / np.log(1. + beta**2 / theta_E**2)
+        f2 = f1
+        if alpha > beta:
+            f2 = f1 * alpha**2 / beta**2
+        beta_eff = theta_E * np.sqrt(np.exp(f2 * np.log(1. + beta**2 / theta_E**2)) - 1.)
         beta = beta_eff
 
         mean_free_path = 106 * F * beam_energy / (Em * np.log(2 * beta_eff * beam_energy / Em))

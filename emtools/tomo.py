@@ -3,7 +3,7 @@
 # This file is part of EMTools
 
 """
-Tomo module for EMTools package
+Tomo module for EMTools package.
 
 @author: Andrew Herzing
 """
