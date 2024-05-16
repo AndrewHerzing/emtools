@@ -8,7 +8,7 @@ EELS module for EMTools package.
 @author: Andrew Herzing
 """
 
-import imp
+import importlib
 import numpy as np
 from scipy.integrate import quad
 import scipy
@@ -463,7 +463,7 @@ def sigpar(z, dl, shell, e0, beta):
         infile = 'Sigpar_fno45.dat'
     else:
         raise ValueError("Invalid Edge Type ''%s''" % shell)
-    infile = imp.find_module("emtools")[1] + "/data/" + infile
+    infile = importlib.util.find_spec('emtools').submodule_search_locations[0] + "/data/" + infile
 
     # Read edge type data
     inData = np.loadtxt(infile)

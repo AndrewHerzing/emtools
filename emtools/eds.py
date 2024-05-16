@@ -8,12 +8,12 @@ EDS module for EMTools package.
 @author: Andrew Herzing
 """
 
-import imp
+import importlib
 from matplotlib import pylab as plt
 import hyperspy.api as hs
 import numpy as np
 
-datapath = imp.find_module("emtools")[1] + "/data/"
+datapath = importlib.util.find_spec('emtools').submodule_search_locations[0] + "/data/"
 
 
 def get_test_spectrum(material='2063a'):
