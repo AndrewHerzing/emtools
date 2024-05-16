@@ -8,5 +8,5 @@ setup(
     author='Andrew A. Herzing',
     description='Python tools for processing electron microscopy data ',
     packages=['emtools', ],
-    install_requires=['pystackreg', ]
+    install_requires=['pystackreg', 'pymcr', ]
 )
