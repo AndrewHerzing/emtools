@@ -214,7 +214,7 @@ def fcnnls(C, A):
     K : Numpy array
         NNLS solution
     Pset : Numpy array
-        Passive sets of K 
+        Passive sets of K
 
     """
     def _cssls(CtC, CtA, Pset):
