@@ -143,7 +143,7 @@ def spatial_simplicity(A, D, wt_spec, wt_im, sum_to_one=True):
     return loadings_SS, factors_SS
 
 
-def upsample_factors(si, loadings, factors, scaling):
+def upsample_factors(si, loadings, factors, scaling, **kwargs):
     """
     Upsample calculated factors to the original resolution
 
@@ -168,6 +168,8 @@ def upsample_factors(si, loadings, factors, scaling):
         Upsampled spectral factors array [nchannels, nfactors]
 
     """
+    tol = kwargs.get('tol', None)
+    maxiter = kwargs.get('maxiter', None)
     ST = factors.T
     C = loadings
     nfactors = C.shape[1]
@@ -178,14 +180,14 @@ def upsample_factors(si, loadings, factors, scaling):
     si_binned = si_binned.data + 1e-6
     C_nnls = np.zeros([nfactors, si_binned.shape[0]])
     for i in tqdm.tqdm(range(npixels)):
-        C_nnls[:, i], _ = optimize.nnls(ST, si_binned[i, :])
+        C_nnls[:, i], _ = optimize.nnls(ST, si_binned[i, :], maxiter=maxiter, atol=tol)
 
     si_binned = si.rebin(scale=(scaling[0], scaling[1], 1))
     si_binned.unfold()
     si_binned = si_binned.data + 1e-6
     ST_nnls = np.zeros([nfactors, si_binned.shape[1]])
     for i in tqdm.tqdm(range(nchannels)):
-        ST_nnls[:, i], _ = optimize.nnls(C, si_binned[:, i])
+        ST_nnls[:, i], _ = optimize.nnls(C, si_binned[:, i], maxiter=maxiter, atol=tol)
     C_nnls = C_nnls.reshape([nfactors, nrows, ncols])
     return C_nnls, ST_nnls.T
 
