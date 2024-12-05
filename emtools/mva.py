@@ -85,6 +85,45 @@ def plot_rgb_overlay(
 
 class MVA:
     def __init__(self, si):
+        """
+        Initialize the MVA class with a hyperspectral dataset and prepare it for multivariate analysis.
+
+        This constructor accepts a `Signal` object (`si`) and prepares the data by performing the following:
+        - Extracts the axes info of the input signal to a dictionary.
+        - Creates a copy of the signal and unfolds it.
+        - Swaps the first two axes of the data array.
+        - Checks if the dataset contains any zero values and adjusts the data accordingly to avoid division by zero.
+        - Extracts the shape of the dataset to store the number of rows, columns, and channels.
+
+        Parameters
+        ----------
+        si : hyperspy.signals.Signal2D or exspy.signals.EDSSEMSpectrum or exspy.signals.EDSTEMSpectrum
+            The hyperspectral dataset to be analyzed. The dataset should have the shape `(nrows, ncols, nchannels)`.
+
+        Attributes
+        ----------
+        axes : dict
+            A dictionary representing the axes of the input signal `si`.
+        si : hyperspy.signals.Signal2D or exspy.signals.EDSSEMSpectrum or exspy.signals.EDSTEMSpectrum
+            Copy of the input `si` which is unfolded and transposed.
+        si_offset : float
+            A small offset applied to the data if the minimum value in the dataset is zero.
+        nrows : int
+            The number of rows (spatial dimension) in the dataset.
+        ncols : int
+            The number of columns (spatial dimension) in the dataset.
+        nchannels : int
+            The number of spectral channels in the dataset.
+        wt_im : numpy.ndarray or None
+            The weights applied to the spatial (image) dimension, initialized to `None`.
+        wt_spec : numpy.ndarray or None
+            The weights applied to the spectral dimension, initialized to `None`.
+
+        Notes
+        -----
+        - The constructor assumes that `si.data` is a 3D array of shape `(nrows, ncols, nchannels)`.
+        - A small offset (1e-6) is added to the data if the minimum value in the dataset is zero.
+        """
         self.axes = si.axes_manager.as_dictionary()
         self.si = si.deepcopy()
         self.si.unfold()
