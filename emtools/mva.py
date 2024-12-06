@@ -22,69 +22,8 @@ from hyperspy.signal import _plot_x_results as plt_results
 from emtools.color import merge_color_channels
 
 
-def plot_rgb_overlay(
-    mva, idx, element_list, figsize=(6, 2), y_text_step=15, y_text_start=3, x_offset=2
-):
-    """
-    Plot an RGB overlay image with text annotations indicating the elements contributing
-    to each color channel.
-
-    Parameters:
-    ----------
-    mva : object
-        An object containing MCR-ALS loadings. It is expected to have an attribute
-        `loadingsMCR` that provides access to the spectral loadings for different indices.
-
-    idx : list of int
-        List of indices corresponding to the color channels to be merged into the RGB image.
-
-    element_list : list of list of str
-        A list where each entry is a list of strings describing the elements contributing to
-        a given color channel.
-
-    figsize : tuple of float, optional, default=(6, 2)
-        The size of the figure (width, height) in inches.
-
-    y_text_step : int, optional, default=15
-        Vertical spacing between consecutive text annotations.
-
-    y_text_start : int, optional, default=3
-        Initial vertical position for the first text annotation.
-
-    x_offset : int, optional, default=2
-        Horizontal offset for the text annotations, determining their distance from the image.
-
-    Returns:
-    -------
-    None
-        Displays the RGB overlay plot with text annotations.
-
-    """
-
-    rgb = merge_color_channels([mva.loadingsMCR.inav[i].data for i in idx])
-    elements = [element_list[i] for i in idx]
-    fig, ax = plt.subplots(figsize=figsize)
-    ax.imshow(rgb)
-    colors = ["r", "g", "b", "c", "y", "m", "gray"]
-    x_text = rgb.shape[1] + x_offset  # Position text to the right of the image
-    y_text = y_text_start
-    for i, (region, color) in enumerate(zip(elements, colors)):
-        ax.text(
-            x_text,
-            y_text,
-            ", ".join(region),
-            color=color,
-            fontsize=12,
-            ha="left",
-            va="center",
-        )
-        y_text = y_text + y_text_step
-    plt.tight_layout()
-    return
-
-
 class MVA:
-    def __init__(self, si):
+    def __init__(self, si, binning=None):
         """
         Initialize the MVA class with a hyperspectral dataset and prepare it for multivariate analysis.
 
@@ -99,6 +38,9 @@ class MVA:
         ----------
         si : hyperspy.signals.Signal2D or exspy.signals.EDSSEMSpectrum or exspy.signals.EDSTEMSpectrum
             The hyperspectral dataset to be analyzed. The dataset should have the shape `(nrows, ncols, nchannels)`.
+        binning : None or list of ints , optional
+            Binning factors for preprocessing.  If None, no binning is performed.  If `int` the same binning is applied
+            in all three dimensions.  If list of ints, binning for each dimension is defined separately.
 
         Attributes
         ----------
@@ -124,8 +66,26 @@ class MVA:
         - The constructor assumes that `si.data` is a 3D array of shape `(nrows, ncols, nchannels)`.
         - A small offset (1e-6) is added to the data if the minimum value in the dataset is zero.
         """
-        self.axes = si.axes_manager.as_dictionary()
+        self.si_orig = si.deepcopy()
+        self.axes_orig = si.axes_manager.as_dictionary()
         self.si = si.deepcopy()
+        self.orig_shape = si.data.shape
+        if binning is None:
+            self.binning = None
+        else:
+            if type(binning) is int:
+                self.binning = [binning, binning, binning]
+            elif type(binning) is list:
+                self.binning = binning
+            else:
+                raise TypeError(
+                    "Binning must be None, int, or list of ints. Type %s is not allowed"
+                    % type(binning)
+                )
+            self.si = self.si.rebin(scale=self.binning)
+        self.nrows, self.ncols, self.nchannels = self.si.data.shape
+        self.npix = self.nrows * self.ncols
+        self.axes = self.si.axes_manager.as_dictionary()
         self.si.unfold()
         self.si = self.si.swap_axes(0, 1)
         if self.si.data.min() == 0.0:
@@ -133,9 +93,9 @@ class MVA:
             self.si_offset = 1e-6
         else:
             self.si_offset = 0.0
-        self.nrows, self.ncols, self.nchannels = si.data.shape
         self.wt_im = None
         self.wt_spec = None
+        self.upsampled = False
 
     def make_positive(self):
         """
@@ -161,12 +121,10 @@ class MVA:
           and its corresponding loading must be greater than or equal to 1.
         """
 
-        for i in range(0, self.factorsRotated.shape[1]):
-            if (self.factorsRotated[:, i].sum() < 1) and (
-                self.loadingsRotated[i, :].sum() < 1
-            ):
-                self.factorsRotated[:, i] *= -1
-                self.loadingsRotated[i, :] *= -1
+        for i in range(0, self.factors.shape[1]):
+            if (self.factors[:, i].sum() < 1) and (self.loadings[i, :].sum() < 1):
+                self.factors[:, i] *= -1
+                self.loadings[i, :] *= -1
         return
 
     def rotate(self, domain="spatial", gamma=1.0, max_iters=20, tol=1e-6):
@@ -215,9 +173,9 @@ class MVA:
         """
 
         if domain == "spatial":
-            Phi = self.loadingsPCA.T
+            Phi = self.loadings.T
         elif domain == "spectral":
-            Phi = self.factorsPCA
+            Phi = self.factors
         else:
             raise ValueError("Unknown domain.  Must be 'spatial' or 'spectral'")
         p, k = Phi.shape
@@ -238,11 +196,11 @@ class MVA:
         self.rotation_matrix = R
 
         if domain == "spatial":
-            self.loadingsRotated = np.dot(self.loadingsPCA.T, R).T
-            self.factorsRotated = np.dot(self.factorsPCA, R)
+            self.loadings = np.dot(self.loadings.T, R).T
+            self.factors = np.dot(self.factors, R)
         elif domain == "spectral":
-            self.factorsRotated = np.dot(R, self.factorsPCA)
-            self.loadingsRotated = np.dot(R, self.loadingsPCA.T).T
+            self.factors = np.dot(R, self.factors)
+            self.loadings = np.dot(R, self.loadings.T).T
         return
 
     def weight_si(self):
@@ -300,9 +258,9 @@ class MVA:
         -------
         None
             Updates the following instance attributes in place:
-            - `self.factorsSVD`: The left singular vectors (factors) corresponding to the first
+            - `self.factors`: The left singular vectors (factors) corresponding to the first
               `ncomps` components.
-            - `self.loadingsSVD`: The right singular vectors (loadings) corresponding to the first
+            - `self.loadings`: The right singular vectors (loadings) corresponding to the first
               `ncomps` components.
             - `self.eigenvalues`: The singular values corresponding to the first `ncomps` components.
             - `self.svd_comps`: Stores the number of components used in the decomposition.
@@ -315,10 +273,10 @@ class MVA:
           ensure computational efficiency.
         - The singular values (eigenvalues) represent the variance explained by each component.
         """
-        self.svd_comps = ncomps
+        self.ncomps = ncomps
         U, S, V = np.linalg.svd(self.weighted_si.data, full_matrices=False)
-        self.factorsSVD = U[:, 0:ncomps]
-        self.loadingsSVD = V[0:ncomps, :]
+        self.factors = U[:, 0:ncomps]
+        self.loadings = V[0:ncomps, :]
         self.eigenvalues = S[0:ncomps]
         return
 
@@ -362,11 +320,9 @@ class MVA:
         -------
         None
             Updates the following instance attributes in place:
-            - `self.factorsPCA`: The spatial factors (PCA-transformed data).
-            - `self.loadingsPCA`: The spectral loadings (PCA components).
+            - `self.factors`: The PCA spectral factors.
+            - `self.loadings`: The PCA spatial loadings.
             - `self.ncomps`: Stores the number of components used in the PCA decomposition.
-            - `self.factorsSVD`: Truncated to the first `ncomps` components (if previously calculated).
-            - `self.loadingsSVD`: Truncated to the first `ncomps` components (if previously calculated).
 
         Notes:
         -----
@@ -374,18 +330,11 @@ class MVA:
           `self.weighted_si.data`.
         - The PCA computation is performed using `sklearn.decomposition.PCA`.
         - If `ncomps` is not specified, the method retains all available components.
-        - The existing SVD results (`self.factorsSVD` and `self.loadingsSVD`) are truncated
-          to match the number of PCA components.
         """
         pca = PCA(n_components=ncomps)
-        self.factorsPCA = pca.fit_transform(
-            self.weighted_si.data
-        )  # Initial spatial factors
-        self.loadingsPCA = pca.components_  # Initial spectral loadings
+        self.factors = pca.fit_transform(self.weighted_si.data)
+        self.loadings = pca.components_
         self.ncomps = ncomps
-
-        self.factorsSVD = self.factorsSVD[:, 0:ncomps]
-        self.loadingsSVD = self.loadingsSVD[0:ncomps, :]
         return
 
     def mcrals(self, domain="spatial"):
@@ -407,8 +356,8 @@ class MVA:
         -------
         None
             Updates the following instance attributes in place:
-            - `self.factorsMCR`: The optimized spatial factors (MCR-ALS result).
-            - `self.loadingsMCR`: The optimized spectral loadings (MCR-ALS result).
+            - `self.factors`: The optimized spatial factors (MCR-ALS result).
+            - `self.loadings`: The optimized spectral loadings (MCR-ALS result).
 
         Notes:
         -----
@@ -429,13 +378,13 @@ class MVA:
             tol_err_change=1e-4,
         )
         if domain == "spatial":
-            ST_init = np.clip(self.factorsRotated.T, 0, None)
+            ST_init = np.clip(self.factors.T, 0, None)
             mcrar.fit(self.weighted_si.T, ST=ST_init, verbose=True)
         elif domain == "spectral":
-            C_init = np.clip(self.loadingsRotated.T, 0, None)
+            C_init = np.clip(self.loadings.T, 0, None)
             mcrar.fit(self.weighted_si.T, C=C_init, verbose=True)
-        self.factorsMCR = mcrar.ST_opt_.T
-        self.loadingsMCR = mcrar.C_opt_.T
+        self.factors = mcrar.ST_opt_.T
+        self.loadings = mcrar.C_opt_.T
         return
 
     def unweight(self):
@@ -454,19 +403,19 @@ class MVA:
         -------
         None
             Updates the following instance attributes in place:
-            - `self.factorsMCR`: The unweighted spatial factors.
-            - `self.loadingsMCR`: The unweighted spectral loadings.
+            - `self.factors`: The unweighted spatial factors.
+            - `self.loadings`: The unweighted spectral loadings.
 
         Notes:
         -----
         - The method assumes that the weighted factors and loadings are stored in
-          `self.factorsMCR` and `self.loadingsMCR`, and that the weights for the spectral and
+          `self.factors` and `self.loadings`, and that the weights for the spectral and
           spatial dimensions are stored in `self.wt_spec` and `self.wt_im`, respectively.
         - The unweighting process involves dividing each factor by the corresponding spectral weight
           and each loading by the corresponding spatial weight to restore the data to its original scale.
         """
-        self.factorsMCR = (self.factorsMCR.T / self.wt_spec).T
-        self.loadingsMCR = self.loadingsMCR / self.wt_im
+        self.factors = (self.factors.T / self.wt_spec).T
+        self.loading = self.loadings / self.wt_im
         return
 
     def sum_to_one(self):
@@ -536,8 +485,7 @@ class MVA:
 
         This method converts the factors and loadings from SVD, PCA, rotation, and MCR decomposition
         into appropriate Hyperspy Signal objects. The resulting signals are assigned to the
-        instance attributes `self.factorsSVD`, `self.loadingsSVD`, `self.factorsPCA`, `self.loadingsPCA`,
-        `self.factorsRotated`, `self.loadingsRotated`, `self.factorsMCR`, and `self.loadingsMCR`.
+        instance attributes `self.factors` and `self.loadings`.
 
         The factors are converted to `EDSTEMSpectrum` objects, while the loadings are converted
         to `Signal2D` objects, each with properly defined axes.
@@ -550,21 +498,14 @@ class MVA:
         -------
         None
             Updates the following instance attributes in place:
-            - `self.factorsSVD`: Converted SVD factors as an `EDSTEMSpectrum` signal.
-            - `self.loadingsSVD`: Converted SVD loadings as a `Signal2D` signal.
-            - `self.factorsPCA`: Converted PCA factors as an `EDSTEMSpectrum` signal.
-            - `self.loadingsPCA`: Converted PCA loadings as a `Signal2D` signal.
-            - `self.factorsRotated`: Converted rotated factors as an `EDSTEMSpectrum` signal.
-            - `self.loadingsRotated`: Converted rotated loadings as a `Signal2D` signal.
-            - `self.factorsMCR`: Converted MCR factors as an `EDSTEMSpectrum` signal.
-            - `self.loadingsMCR`: Converted MCR loadings as a `Signal2D` signal.
+            - `self.factors`: Converted factors as an `EDSTEMSpectrum` signal.
+            - `self.loadings`: Converted loadings as a `Signal2D` signal.
 
         Notes:
         -----
-        - The method assumes that the factors and loadings for SVD, PCA, rotated, and MCR are available
-          in the corresponding attributes: `self.factorsSVD`, `self.loadingsSVD`, `self.factorsPCA`,
-          `self.loadingsPCA`, `self.factorsRotated`, `self.loadingsRotated`, `self.factorsMCR`, and `self.loadingsMCR`.
-        - The `comp_axis` defines the axis for the decomposition components and is shared across all signals.
+        - The method assumes that the factors and loadings for are available
+          in the corresponding attributes: `self.factors`, `self.loadings`
+        - The `comp_axis` defines the axis for the decomposition components.
         - The method uses the `ex.signals.EDSTEMSpectrum` from eXSpy and `hs.signals.Signal2D` from HyperSpy to convert the data.
         """
         comp_axis = {
@@ -577,36 +518,18 @@ class MVA:
             "scale": 1.0,
             "offset": 0.0,
         }
-        self.factorsSVD = ex.signals.EDSTEMSpectrum(
-            self.factorsSVD.T, axes=[comp_axis, self.axes["axis-2"]]
+        if self.upsampled:
+            nrows, ncols = self.orig_shape[0:2]
+            axes = self.axes_orig
+        else:
+            nrows, ncols = self.nrows, self.ncols
+            axes = self.axes
+        self.factors = ex.signals.EDSTEMSpectrum(
+            self.factors.T, axes=[comp_axis, axes["axis-2"]]
         )
-        self.loadingsSVD = hs.signals.Signal2D(
-            self.loadingsSVD.reshape([self.ncomps, self.nrows, self.ncols]),
-            axes=[comp_axis, self.axes["axis-0"], self.axes["axis-1"]],
-        )
-
-        self.factorsPCA = ex.signals.EDSTEMSpectrum(
-            self.factorsPCA.T, axes=[comp_axis, self.axes["axis-2"]]
-        )
-        self.loadingsPCA = hs.signals.Signal2D(
-            self.loadingsPCA.reshape([self.ncomps, self.nrows, self.ncols]),
-            axes=[comp_axis, self.axes["axis-0"], self.axes["axis-1"]],
-        )
-
-        self.factorsRotated = ex.signals.EDSTEMSpectrum(
-            self.factorsRotated.T, axes=[comp_axis, self.axes["axis-2"]]
-        )
-        self.loadingsRotated = hs.signals.Signal2D(
-            self.loadingsRotated.reshape([self.ncomps, self.nrows, self.ncols]),
-            axes=[comp_axis, self.axes["axis-0"], self.axes["axis-1"]],
-        )
-
-        self.factorsMCR = ex.signals.EDSTEMSpectrum(
-            self.factorsMCR.T, axes=[comp_axis, self.axes["axis-2"]]
-        )
-        self.loadingsMCR = hs.signals.Signal2D(
-            self.loadingsMCR.reshape([self.ncomps, self.nrows, self.ncols]),
-            axes=[comp_axis, self.axes["axis-0"], self.axes["axis-1"]],
+        self.loadings = hs.signals.Signal2D(
+            self.loadings.reshape([self.ncomps, nrows, ncols]),
+            axes=[comp_axis, axes["axis-0"], axes["axis-1"]],
         )
         return
 
@@ -634,7 +557,7 @@ class MVA:
         if comp_idx is None:
             comp_idx = np.arange(0, self.ncomps)
         _ = hs.plot.plot_images(
-            [self.loadingsMCR.inav[i] for i in comp_idx],
+            [self.loadings.inav[i] for i in comp_idx],
             cmap=colormap,
             tight_layout=True,
         )
@@ -662,14 +585,14 @@ class MVA:
         """
         if comp_idx is None:
             comp_idx = np.arange(0, self.ncomps)
-        _ = hs.plot.plot_spectra([self.factorsMCR.inav[i] for i in comp_idx])
+        _ = hs.plot.plot_spectra([self.factors.inav[i] for i in comp_idx])
         return
 
     def plot_component(self, idx, elements, lines=None, offset=0.1, colormap="afmhot"):
         """
-        Plot the MCR loading and factor for the specified component, with X-ray lines labeled.
+        Plot the loading and factor for the specified component, with X-ray lines labeled.
 
-        This method generates a two-panel plot where the first panel shows the 2D data of the MCR
+        This method generates a two-panel plot where the first panel shows the 2D data of the
         loading and the second panel shows the 1D data of the corresponding factor. It also annotates
         the x-ray lines on the factor plot.
 
@@ -696,11 +619,11 @@ class MVA:
 
         Notes:
         -----
-        - The MCR loading and factor are accessed from `self.loadingsMCR.inav[idx]` and
-          `self.factorsMCR.inav[idx]`, respectively.
+        - The loading and factor are accessed from `self.loadings.inav[idx]` and
+          `self.factors.inav[idx]`, respectively.
         """
-        loading = self.loadingsMCR.inav[idx]
-        factor = self.factorsMCR.inav[idx]
+        loading = self.loadings.inav[idx]
+        factor = self.factors.inav[idx]
 
         factor.set_elements([])
         factor.set_lines([])
@@ -764,53 +687,94 @@ class MVA:
         None
             The plot is displayed directly using the `plt_results` function. No value is returned.
         """
-        plt_results(self.factorsMCR, self.loadingsMCR, "smart_auto", "smart_auto", 2, 2)
+        plt_results(self.factors, self.loadings, "smart_auto", "smart_auto", 2, 2)
 
+    def upsample(self, tol=None, maxiter=None):
+        ST = self.factors
+        C = self.loadings.T
+        nfactors = C.shape[1]
+        nrows, ncols, nchannels = self.si_orig.data.shape
+        npixels = nrows * ncols
+        si_binned = self.si_orig.rebin(scale=(1, 1, self.binning[2]))
+        si_binned.unfold()
+        si_binned = si_binned.data + 1e-6
+        C_nnls = np.zeros([nfactors, si_binned.shape[0]])
+        for i in tqdm.tqdm(range(npixels)):
+            C_nnls[:, i], _ = optimize.nnls(
+                ST, si_binned[i, :], maxiter=maxiter, atol=tol
+            )
+        self.loadings = C_nnls
 
-def upsample_factors(si, loadings, factors, scaling, **kwargs):
-    """
-    Upsample calculated factors to the original resolution
+        si_binned = self.si_orig.rebin(scale=(self.binning[0], self.binning[1], 1))
+        si_binned.unfold()
+        si_binned = si_binned.data + 1e-6
+        ST_nnls = np.zeros([nfactors, si_binned.shape[1]])
+        for i in tqdm.tqdm(range(nchannels)):
+            ST_nnls[:, i], _ = optimize.nnls(
+                C, si_binned[:, i], maxiter=maxiter, atol=tol
+            )
+        self.factors = ST_nnls.T
+        self.upsampled = True
+        return
 
-    Args
-    ----------
-    si : Hyperspy Signal1D
-        Original hyperspectral dataset before decomposition
-    loadings : NumPy array
-        Loadings array of shape (npixels, nfactors)
-    factors : fload
-        Factor array of shape (nfactors, nchannels)
-    scaling : list or NumPy array
-        Factors by which the original SI was compressed in order to perform
-        the decomposition.  The order must be:
-        [compression_rows, compression_columns, compression_spectral]
+    def plot_rgb_overlay(
+        self,
+        idx,
+        element_list,
+        figsize=(6, 2),
+        y_text_step=15,
+        y_text_start=3,
+        x_offset=2,
+    ):
+        """
+        Plot an RGB overlay image with text annotations indicating the elements contributing
+        to each color channel.
 
-    Returns
-    -----------
-    C_nnls : Numpy array
-        Upsampled loadings array [nfactors, nrows, ncols]
-    ST_nnls : Numpy array
-        Upsampled spectral factors array [nchannels, nfactors]
+        Parameters:
+        ----------
+        idx : list of int
+            List of indices corresponding to the color channels to be merged into the RGB image.
 
-    """
-    tol = kwargs.get("tol", None)
-    maxiter = kwargs.get("maxiter", None)
-    ST = factors.T
-    C = loadings
-    nfactors = C.shape[1]
-    nrows, ncols, nchannels = si.data.shape
-    npixels = nrows * ncols
-    si_binned = si.rebin(scale=(1, 1, scaling[2]))
-    si_binned.unfold()
-    si_binned = si_binned.data + 1e-6
-    C_nnls = np.zeros([nfactors, si_binned.shape[0]])
-    for i in tqdm.tqdm(range(npixels)):
-        C_nnls[:, i], _ = optimize.nnls(ST, si_binned[i, :], maxiter=maxiter, atol=tol)
+        element_list : list of list of str
+            A list where each entry is a list of strings describing the elements contributing to
+            a given color channel.
 
-    si_binned = si.rebin(scale=(scaling[0], scaling[1], 1))
-    si_binned.unfold()
-    si_binned = si_binned.data + 1e-6
-    ST_nnls = np.zeros([nfactors, si_binned.shape[1]])
-    for i in tqdm.tqdm(range(nchannels)):
-        ST_nnls[:, i], _ = optimize.nnls(C, si_binned[:, i], maxiter=maxiter, atol=tol)
-    C_nnls = C_nnls.reshape([nfactors, nrows, ncols])
-    return C_nnls, ST_nnls.T
+        figsize : tuple of float, optional, default=(6, 2)
+            The size of the figure (width, height) in inches.
+
+        y_text_step : int, optional, default=15
+            Vertical spacing between consecutive text annotations.
+
+        y_text_start : int, optional, default=3
+            Initial vertical position for the first text annotation.
+
+        x_offset : int, optional, default=2
+            Horizontal offset for the text annotations, determining their distance from the image.
+
+        Returns:
+        -------
+        None
+            Displays the RGB overlay plot with text annotations.
+
+        """
+
+        rgb = merge_color_channels([self.loadings.inav[i].data for i in idx])
+        elements = [element_list[i] for i in idx]
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.imshow(rgb)
+        colors = ["r", "g", "b", "c", "y", "m", "gray"]
+        x_text = rgb.shape[1] + x_offset  # Position text to the right of the image
+        y_text = y_text_start
+        for i, (region, color) in enumerate(zip(elements, colors)):
+            ax.text(
+                x_text,
+                y_text,
+                ", ".join(region),
+                color=color,
+                fontsize=12,
+                ha="left",
+                va="center",
+            )
+            y_text = y_text + y_text_step
+        plt.tight_layout()
+        return
