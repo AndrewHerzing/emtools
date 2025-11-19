@@ -12,12 +12,12 @@ import numpy as np
 import hyperspy.api as hs
 from scipy.signal import convolve2d
 
-e = 1.602e-19       # Charge of electron (Coulombs)
-m0 = 9.109e-31      # Rest mass of electron (kg)
-m0c2 = 511          # Rest energy of electron (keV)
-h = 6.626e-34       # Planck's constant
-c = 2.998e8         # Speed of light in vacuum (m/s)
-Na = 6.0221409e23   # Avogadro's number
+e = 1.602e-19  # Charge of electron (Coulombs)
+m0 = 9.109e-31  # Rest mass of electron (kg)
+m0c2 = 511  # Rest energy of electron (keV)
+h = 6.626e-34  # Planck's constant
+c = 2.998e8  # Speed of light in vacuum (m/s)
+Na = 6.0221409e23  # Avogadro's number
 
 
 def mrads_to_hkl(angle, voltage):
@@ -101,7 +101,7 @@ def voltage_to_wavelength(voltage, relativistic=False):
         Calculated wavelength (in nanometers)
     """
     if relativistic:
-        correction = (1 + ((e * voltage * 1000) / (2 * m0 * c**2)))
+        correction = 1 + ((e * voltage * 1000) / (2 * m0 * c**2))
         wavelength = h / np.sqrt(2 * m0 * e * voltage * 1000 * correction)
     else:
         wavelength = h / np.sqrt(2 * m0 * e * voltage * 1000)
@@ -140,8 +140,7 @@ def get_atom_mass(element):
     atom_mass : float
         Mass of an atom of element (in kg)
     """
-    atomic_weight =\
-        hs.material.elements[element].General_properties.atomic_weight
+    atomic_weight = hs.material.elements[element].General_properties.atomic_weight
     atom_mass = atomic_weight / Na / 1000
     return atom_mass
 
@@ -178,7 +177,7 @@ def calc_rutherford_energy_loss(energy, element, theta, relativistic=False):
     else:
         mass_ratio = m0 / atom_mass
 
-    energy_loss = 4 * np.sin(theta / 2000)**2 * mass_ratio * energy * 1000
+    energy_loss = 4 * np.sin(theta / 2000) ** 2 * mass_ratio * energy * 1000
     return energy_loss
 
 
@@ -214,7 +213,7 @@ def calc_ERBS_energy_loss(energy, element, theta, relativistic=False):
     else:
         k = np.sqrt(energy * 1000 * 2 * m0)
 
-    energy_loss = (2 / atom_mass) * (k * np.sin(theta / 2000))**2
+    energy_loss = (2 / atom_mass) * (k * np.sin(theta / 2000)) ** 2
     return energy_loss
 
 
@@ -244,7 +243,7 @@ def calc_probe_size(ht, alpha, relativistic=True):
     return probe_size
 
 
-def change_units(im, new_units='nm'):
+def change_units(im, new_units="nm"):
     """
     Change the spatial calibration units of an image.
 
@@ -262,32 +261,32 @@ def change_units(im, new_units='nm'):
     """
     if im.axes_manager[0].units == new_units:
         return im
-    elif new_units == 'A':
-        if im.axes_manager[0].units in ['um', 'µm', '\u03BCm', '\xb5m']:
-            im.axes_manager[0].units = '\u00c5'
+    elif new_units == "A":
+        if im.axes_manager[0].units in ["um", "µm", "\u03bcm", "\xb5m"]:
+            im.axes_manager[0].units = "\u00c5"
             im.axes_manager[0].scale = 1e4 * im.axes_manager[0].scale
-            im.axes_manager[1].units = '\u00c5'
+            im.axes_manager[1].units = "\u00c5"
             im.axes_manager[1].scale = 1e4 * im.axes_manager[1].scale
-        elif im.axes_manager[0].units == 'nm':
-            im.axes_manager[0].units = '\u00c5'
+        elif im.axes_manager[0].units == "nm":
+            im.axes_manager[0].units = "\u00c5"
             im.axes_manager[0].scale = 10 * im.axes_manager[0].scale
-            im.axes_manager[1].units = '\u00c5'
+            im.axes_manager[1].units = "\u00c5"
             im.axes_manager[1].scale = 10 * im.axes_manager[1].scale
-    elif new_units == 'nm':
-        if im.axes_manager[0].units in ['um', 'µm', '\u03BCm', '\xb5m']:
-            im.axes_manager[0].units = 'nm'
+    elif new_units == "nm":
+        if im.axes_manager[0].units in ["um", "µm", "\u03bcm", "\xb5m"]:
+            im.axes_manager[0].units = "nm"
             im.axes_manager[0].scale = 1e3 * im.axes_manager[0].scale
-            im.axes_manager[1].units = 'nm'
+            im.axes_manager[1].units = "nm"
             im.axes_manager[1].scale = 1e3 * im.axes_manager[1].scale
-        elif im.axes_manager[0].units in ['A', '\u00c5']:
-            im.axes_manager[0].units = 'nm'
+        elif im.axes_manager[0].units in ["A", "\u00c5"]:
+            im.axes_manager[0].units = "nm"
             im.axes_manager[0].scale = im.axes_manager[0].scale / 10
-            im.axes_manager[1].units = 'nm'
+            im.axes_manager[1].units = "nm"
             im.axes_manager[1].scale = im.axes_manager[1].scale / 10
     return im
 
 
-def calc_mean_z(composition, elements, comp_type='at'):
+def calc_mean_z(composition, elements, comp_type="at"):
     """
     Calculate the mean atomic number given composition and elements.
 
@@ -308,10 +307,10 @@ def calc_mean_z(composition, elements, comp_type='at'):
 
     """
     Zs = np.array([hs.material.elements[i].General_properties.Z for i in elements])
-    if comp_type == 'at':
+    if comp_type == "at":
         atom_fracs = composition
         Zmean = np.sum(Zs * atom_fracs / 100)
-    elif comp_type == 'wt':
+    elif comp_type == "wt":
         atom_fracs = hs.material.weight_to_atomic(composition, elements)
         Zmean = np.sum(Zs * atom_fracs / 100)
     return Zmean
@@ -328,9 +327,7 @@ def estimate_image_noise(image):
     """
     H, W = image.shape
 
-    M = [[1, -2, 1],
-         [-2, 4, -2],
-         [1, -2, 1]]
+    M = [[1, -2, 1], [-2, 4, -2], [1, -2, 1]]
 
     sigma = np.sum(np.sum(np.absolute(convolve2d(image, M))))
     sigma = sigma * np.sqrt(0.5 * np.pi) / (6 * (W - 2) * (H - 2))
@@ -404,5 +401,44 @@ def calc_dose_probe(probe_current, probe_fwhm, dwell_time):
 
     """
     n_electrons = 6.242e18 * probe_current * dwell_time
-    dose = n_electrons / (np.pi * (probe_fwhm / 2)**2)
+    dose = n_electrons / (np.pi * (probe_fwhm / 2) ** 2)
     return dose
+
+
+def calc_Rutherford_cross_section(
+    Z, beam_energy=200e3, beta_inner=60e-3, beta_outer=300e-3
+):
+    """
+    Calulate relativistic Rutherford scattering cross section .
+
+    Args
+    ---------
+    Z : int
+        Atomic number of scattering atom
+    beam_energy : float
+        incident electron energy in eV
+    beta_inner : float
+        Inner angle of detector in radians
+    beta_outer : float
+        Outer angle of detector in radians
+
+    Returns
+    ---------
+    sigma : float
+        Calculated relativistic cross section
+
+    """
+    e = 1.602e-19  # C
+    eps0 = 8.854e-12  # F/m
+    m0c2_eV = 511e3
+
+    V_rel = beam_energy * (1 + (beam_energy / (2 * m0c2_eV)))
+
+    prefactor = ((Z * e**2) / (16 * np.pi * eps0 * V_rel * e)) ** 2
+    sigma = (
+        prefactor
+        * 4
+        * np.pi
+        * ((1 / (np.sin(beta_inner / 2) ** 2)) - (1 / (np.sin(beta_outer / 2) ** 2)))
+    )
+    return sigma
